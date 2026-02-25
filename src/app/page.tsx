@@ -170,10 +170,10 @@ function Dashboard() {
       const m = t.descricao?.match(/^(.+) \((\d+)\/(\d+)\)$/)
       if (!m) return
       const [, base, nStr, totalStr] = m
-      const total = parseInt(totalStr)
+      const n = parseInt(nStr), total = parseInt(totalStr)
       const key = base + '|' + total
       if (!map[key]) map[key] = { descricao: base, valorParcela: t.valor, total, pagas: 0, categoria: t.categoria, ultimaData: t.data }
-      map[key].pagas += 1
+      map[key].pagas = Math.max(map[key].pagas, n) // highest N seen, not count
       if (t.data > map[key].ultimaData) map[key].ultimaData = t.data
     })
     return Object.values(map)
