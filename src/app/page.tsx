@@ -1,9 +1,11 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { supabase, Transacao } from '@/lib/supabase'
+import { getSupabase, Transacao } from '@/lib/supabase'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
@@ -49,12 +51,14 @@ function DashboardContent() {
 
   const fetchData = useCallback(async () => {
     if (!phone) return
+    const client = getSupabase()
+    if (!client) return
     setLoading(true)
     const startDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`
     const endDate = new Date(selectedYear, selectedMonth + 1, 0)
       .toISOString().split('T')[0]
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('transacoes')
       .select('*')
       .eq('phone', phone)
