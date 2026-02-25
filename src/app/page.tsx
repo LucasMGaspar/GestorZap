@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, Suspense, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Transacao } from '@/lib/supabase'
+import { getSupabase, Transacao } from '@/lib/supabase'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie, Legend, LineChart, Line
@@ -95,15 +95,33 @@ function Dashboard() {
     setLoading(true)
     setAuthError(null)
     try {
-      const res = await fetch(`/api/data?token=${encodeURIComponent(token)}&month=${month}&year=${year}`)
-      if (res.status === 401) { setAuthError('token_required'); setLoading(false); return }
-      if (res.status === 403) { setAuthError('token_invalido'); setLoading(false); return }
-      const data = await res.json()
-      setPhone(data.phone ?? '')
-      setTxAll(data.transacoes ?? [])
-      setTxPrev(data.transacoesPrevMes ?? [])
-      setTxYear(data.transacoesAno ?? [])
-      setComprasParceladas(data.comprasParceladas ?? [])
+      // Step 1: validate token server-side (fast)
+      const authRes = await fetch(`/api/auth?token=${encodeURIComponent(token)}`)
+      if (authRes.status === 401) { setAuthError('token_required'); setLoading(false); return }
+      if (authRes.status === 403) { setAuthError('token_invalido'); setLoading(false); return }
+      const authData = await authRes.json()
+      const resolvedPhone = authData.phone
+      setPhone(resolvedPhone)
+
+      // Step 2: fetch data directly from Supabase (client-side, proven to work)
+      const client = getSupabase()
+      if (!client) { setLoading(false); return }
+      const s = `${year}-${String(month + 1).padStart(2, '0')}-01`
+      const e = new Date(year, month + 1, 0).toISOString().split('T')[0]
+      const [pm, py] = month === 0 ? [11, year - 1] : [month - 1, year]
+      const ps = `${py}-${String(pm + 1).padStart(2, '0')}-01`
+      const pe = new Date(py, pm + 1, 0).toISOString().split('T')[0]
+      const ys = `${year}-01-01`, ye = `${year}-12-31`
+      const [r1, r2, r3, r4] = await Promise.all([
+        client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', s).lte('data', e).order('data', { ascending: false }),
+        client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', ps).lte('data', pe),
+        client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', ys).lte('data', ye),
+        client.from('compras_parceladas').select('*').eq('phone', resolvedPhone).eq('ativa', true).order('criado_em', { ascending: false }),
+      ])
+      if (r1.data) setTxAll(r1.data)
+      if (r2.data) setTxPrev(r2.data)
+      if (r3.data) setTxYear(r3.data)
+      setComprasParceladas(r4.data ?? [])
     } catch { setAuthError('erro_rede') }
     setLoading(false)
   }, [token, month, year])
