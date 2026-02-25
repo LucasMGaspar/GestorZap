@@ -674,11 +674,6 @@ function Empty({ msg = 'Nenhuma transação neste período' }: { msg?: string })
   return <div style={{ textAlign: 'center', padding: '40px 20px' }}><div style={{ fontSize: '2rem', marginBottom: 10 }}>📭</div><p style={{ color: 'var(--text2)', fontSize: '0.88rem' }}>{msg}</p></div>
 }
 
-function h2r(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16)
-  return `${r},${g},${b}`
-}
-
 // ─── Export ───────────────────────────────────────────────────────────────────
 export default function Page() {
   return (
