@@ -214,9 +214,9 @@ function Dashboard() {
         <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '60%', height: '60%', background: 'radial-gradient(circle,rgba(139,92,246,0.05) 0%,transparent 70%)', borderRadius: '50%' }} />
       </div>
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1280, margin: '0 auto', padding: '28px 24px' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1280, margin: '0 auto', padding: '28px 24px' }} className="mobile-pad">
         {/* Header */}
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 14 }}>
+        <header className="dash-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(99,102,241,0.4)' }}>
               <Wallet size={22} color="white" />
@@ -226,7 +226,7 @@ function Dashboard() {
               <p style={{ fontSize: '0.76rem', color: 'var(--text2)', marginTop: 1 }}>Dashboard pessoal via WhatsApp</p>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="dash-header-controls" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 6 }}>
               <input className="input-field" value={inputPhone} onChange={e => setInputPhone(e.target.value)} placeholder="55119999..." style={{ width: 145 }} onKeyDown={e => e.key === 'Enter' && setPhone(inputPhone)} />
               <button className="btn-primary" onClick={() => setPhone(inputPhone)}>Buscar</button>
@@ -264,7 +264,7 @@ function Dashboard() {
             </div>
 
             {/* Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 16 }}>
+            <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 16 }}>
               <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastos.length} transações`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
               <MCard label="Total Receitas" value={fmt(totalR)} sub={`${receitas.length} transações`} icon={<ArrowUpCircle size={18} />} color="#10b981" grad="rgba(16,185,129,0.1)" pct={pctR} />
               <MCard label="Saldo" value={fmt(saldo)} sub={saldo >= 0 ? 'Em dia ✨' : 'Atenção ⚠️'} icon={saldo >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldo >= 0 ? '#10b981' : '#ef4444'} grad={saldo >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
@@ -273,7 +273,7 @@ function Dashboard() {
 
             {/* Insights row */}
             {txAll.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 10, marginBottom: 20 }}>
+              <div className="insight-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 10, marginBottom: 20 }}>
                 <ICard emoji="📅" title="Dias registrados" value={`${new Set(txAll.map(t => t.data)).size} dias`} sub={`${MONTHS_PT[month]}`} color="#6366f1" />
                 <ICard emoji="🔮" title="Previsão do mês" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />
                 <ICard emoji="📈" title="Média diária" value={fmt(avgDailySpend)} sub="de gastos por dia" color="#ef4444" />
@@ -282,7 +282,7 @@ function Dashboard() {
             )}
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'rgba(255,255,255,0.04)', padding: 4, borderRadius: 12, width: 'fit-content', border: '1px solid var(--border)' }}>
+            <div className="tab-bar" style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'rgba(255,255,255,0.04)', padding: 4, borderRadius: 12, width: 'fit-content', border: '1px solid var(--border)' }}>
               {(['overview', 'transactions', 'annual', 'budget'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
                   style={{
@@ -537,7 +537,7 @@ function Dashboard() {
                 </div>
                 <div className="glass" style={{ padding: 24 }}>
                   <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 14 }}>📊 Tabela Mensal</h3>
-                  <div style={{ overflowX: 'auto' }}>
+                  <div className="table-wrap" style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                       <thead>
                         <tr style={{ borderBottom: '1px solid var(--border)' }}>

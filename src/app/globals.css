@@ -223,3 +223,96 @@ select.input-field {
 .recharts-tooltip-wrapper {
   outline: none !important;
 }
+
+/* ─── Mobile Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Reduce outer padding */
+  .mobile-pad {
+    padding: 16px !important;
+  }
+
+  /* Glass cards: smaller radius on mobile */
+  .glass {
+    border-radius: 14px;
+  }
+
+  /* Inputs/buttons: larger tap targets */
+  .input-field {
+    padding: 12px 14px;
+    font-size: 1rem;
+    /* prevents zoom on iOS */
+  }
+
+  .btn-primary,
+  .btn-ghost {
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+
+  /* Tab bar: horizontal scroll */
+  .tab-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .tab-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-bar button {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Header stack */
+  .dash-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .dash-header-controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .dash-header-controls input,
+  .dash-header-controls select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Charts: shorter height on mobile */
+  .recharts-responsive-container svg {
+    max-height: 180px;
+  }
+
+  /* Table: horizontal scroll */
+  table {
+    min-width: 480px;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  .glass {
+    border-radius: 12px;
+  }
+
+  /* Single column force */
+  .metric-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .insight-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
