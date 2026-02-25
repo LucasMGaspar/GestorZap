@@ -1,11 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Server-side only — service_role key never reaches the browser
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const dynamic = 'force-dynamic'
+
+function getSupabase() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+            auth: { persistSession: false, autoRefreshToken: false },
+            realtime: { params: { eventsPerSecond: -1 } },
+        }
+    )
+}
 
 export async function GET(req: NextRequest) {
     const token = req.nextUrl.searchParams.get('token')
@@ -15,6 +22,8 @@ export async function GET(req: NextRequest) {
     if (!token) {
         return NextResponse.json({ error: 'token_required' }, { status: 401 })
     }
+
+    const supabase = getSupabase()
 
     // 1. Validate token → get phone
     const { data: usuario, error: uErr } = await supabase
@@ -49,8 +58,8 @@ export async function GET(req: NextRequest) {
         supabase.from('compras_parceladas').select('*').eq('phone', phone).eq('ativa', true).order('criado_em', { ascending: false }),
     ])
 
-    // Update last access
-    await supabase.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('phone', phone)
+    // Update last access (fire and forget)
+    supabase.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('phone', phone)
 
     return NextResponse.json({
         phone,

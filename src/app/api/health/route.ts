@@ -16,11 +16,11 @@ export async function GET() {
     }
 
     try {
-        const supabase = createClient(url, key)
-        const { data, error } = await supabase
-            .from('usuarios')
-            .select('count')
-            .limit(1)
+        const supabase = createClient(url, key, {
+            auth: { persistSession: false, autoRefreshToken: false },
+            realtime: { params: { eventsPerSecond: -1 } },
+        })
+        const { data, error } = await supabase.from('usuarios').select('count').limit(1)
 
         return NextResponse.json({
             status: 'ok',
