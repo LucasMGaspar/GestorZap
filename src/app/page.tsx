@@ -95,17 +95,21 @@ function Dashboard() {
     setLoading(true)
     setAuthError(null)
     try {
-      // Step 1: validate token server-side (fast)
-      const authRes = await fetch(`/api/auth?token=${encodeURIComponent(token)}`)
-      if (authRes.status === 401) { setAuthError('token_required'); setLoading(false); return }
-      if (authRes.status === 403) { setAuthError('token_invalido'); setLoading(false); return }
-      const authData = await authRes.json()
-      const resolvedPhone = authData.phone
-      setPhone(resolvedPhone)
-
-      // Step 2: fetch data directly from Supabase (client-side, proven to work)
+      // Step 1: validate token directly in browser (client-side) to avoid Vercel timeouts
       const client = getSupabase()
       if (!client) { setLoading(false); return }
+
+      const { data: userData, error: userErr } = await client
+        .from('usuarios')
+        .select('phone')
+        .eq('token', token)
+        .single()
+
+      if (userErr || !userData) { setAuthError('token_invalido'); setLoading(false); return }
+      const resolvedPhone = userData.phone
+      setPhone(resolvedPhone)
+
+      // Step 2: fetch data directly from Supabase
       const s = `${year}-${String(month + 1).padStart(2, '0')}-01`
       const e = new Date(year, month + 1, 0).toISOString().split('T')[0]
       const [pm, py] = month === 0 ? [11, year - 1] : [month - 1, year]
