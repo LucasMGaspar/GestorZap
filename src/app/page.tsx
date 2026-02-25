@@ -162,6 +162,23 @@ function Dashboard() {
     return MONTHS_S.map((name, i) => ({ name, gastos: m[i].gastos, receitas: m[i].receitas, saldo: m[i].receitas - m[i].gastos }))
   }, [txYear])
 
+  // Parcelas ativas (txYear com padrão (N/M) na descrição)
+  const parcelasAtivas = useMemo(() => {
+    const map: Record<string, { descricao: string; valorParcela: number; total: number; pagas: number; categoria: string; ultimaData: string }> = {}
+    txYear.forEach(t => {
+      if (t.tipo !== 'gasto') return
+      const m = t.descricao?.match(/^(.+) \((\d+)\/(\d+)\)$/)
+      if (!m) return
+      const [, base, nStr, totalStr] = m
+      const total = parseInt(totalStr)
+      const key = base + '|' + total
+      if (!map[key]) map[key] = { descricao: base, valorParcela: t.valor, total, pagas: 0, categoria: t.categoria, ultimaData: t.data }
+      map[key].pagas += 1
+      if (t.data > map[key].ultimaData) map[key].ultimaData = t.data
+    })
+    return Object.values(map)
+  }, [txYear])
+
   // Filtered transactions
   const filteredTx = useMemo(() => {
     let tx = [...txAll]
@@ -554,6 +571,53 @@ function Dashboard() {
             {/* ─── BUDGET TAB ───────────────────────────────────────────── */}
             {tab === 'budget' && (
               <div>
+
+                {/* Parcelas Ativas */}
+                {parcelasAtivas.length > 0 && (
+                  <div className="glass" style={{ padding: 24, marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                      <span style={{ fontSize: '1rem' }}>💳</span>
+                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>Parcelas Ativas — {year}</h3>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text3)', marginLeft: 'auto' }}>{parcelasAtivas.length} compra{parcelasAtivas.length > 1 ? 's' : ''} parcelada{parcelasAtivas.length > 1 ? 's' : ''}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {parcelasAtivas.map((p, i) => {
+                        const restantes = p.total - p.pagas
+                        const pct = p.pagas / p.total * 100
+                        const totalDevido = restantes * p.valorParcela
+                        const done = restantes === 0
+                        return (
+                          <div key={i} style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: `rgba(${h2r(cc(p.categoria))},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cc(p.categoria) }}>{ci(p.categoria)}</div>
+                                <div>
+                                  <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{p.descricao}</div>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>{p.categoria} · {fmt(p.valorParcela)}/parcela</div>
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: done ? '#10b981' : '#f59e0b' }}>{done ? '✅ Quitado!' : `${restantes} restante${restantes > 1 ? 's' : ''}`}</div>
+                                {!done && <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>Ainda: {fmt(totalDevido)}</div>}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${pct}%`, borderRadius: 3, background: done ? '#10b981' : `linear-gradient(90deg,#6366f1,#a78bfa)`, transition: 'width 0.5s ease' }} />
+                              </div>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--text3)', minWidth: 55, textAlign: 'right' }}>{p.pagas}/{p.total} pagas</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}>Total em parcelas restantes ({year}):</span>
+                      <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ef4444' }}>{fmt(parcelasAtivas.reduce((a, p) => a + (p.total - p.pagas) * p.valorParcela, 0))}</span>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                   <Target size={16} color="#a78bfa" />
                   <span style={{ fontSize: '0.82rem', color: 'var(--text2)' }}>Defina metas de orçamento por categoria. Os dados são salvos no seu navegador.</span>
