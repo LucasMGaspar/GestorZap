@@ -179,12 +179,12 @@ function DashboardContent() {
               {pieData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                    <Pie data={pieData} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false} fontSize={11}>
                       {pieData.map((entry, i) => (
                         <Cell key={i} fill={CATEGORY_COLORS[entry.name] || '#94a3b8'} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => fmt(v)} />
+                    <Tooltip formatter={(v: number | undefined) => fmt(v ?? 0)} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : <EmptyState />}
@@ -199,7 +199,7 @@ function DashboardContent() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
                     <XAxis dataKey="data" tick={{ fill: '#64748b', fontSize: 11 }} />
                     <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={v => `R$${v}`} />
-                    <Tooltip formatter={(v: number) => fmt(v)} />
+                    <Tooltip formatter={(v: number | undefined) => fmt(v ?? 0)} />
                     <Legend />
                     <Line type="monotone" dataKey="gastos" stroke="#ef4444" strokeWidth={2} dot={false} name="Gastos" />
                     <Line type="monotone" dataKey="receitas" stroke="#10b981" strokeWidth={2} dot={false} name="Receitas" />
@@ -218,7 +218,7 @@ function DashboardContent() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" horizontal={false} />
                   <XAxis type="number" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={v => `R$${v}`} />
                   <YAxis dataKey="name" type="category" tick={{ fill: '#64748b', fontSize: 11 }} width={90} />
-                  <Tooltip formatter={(v: number) => fmt(v)} />
+                  <Tooltip formatter={(v: number | undefined) => fmt(v ?? 0)} />
                   <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                     {pieData.map((entry, i) => (
                       <Cell key={i} fill={CATEGORY_COLORS[entry.name] || '#94a3b8'} />
