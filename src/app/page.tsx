@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, Suspense, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getSupabase, Transacao } from '@/lib/supabase'
+import { Transacao } from '@/lib/supabase'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie, Legend, LineChart, Line
@@ -55,13 +55,17 @@ const CT = ({ active, payload, label }: any) => {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
+type CompraParcelada = { id: string; phone: string; descricao: string; valor_total: number; n_parcelas: number; valor_parcela: number; categoria: string; data_inicio: string; ativa: boolean; criado_em: string }
+
 function Dashboard() {
   const sp = useSearchParams()
-  const [phone, setPhone] = useState(sp.get('phone') || '')
-  const [inputPhone, setInputPhone] = useState(sp.get('phone') || '')
+  const [token] = useState(sp.get('token') || '')
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [phone, setPhone] = useState('')
   const [txAll, setTxAll] = useState<Transacao[]>([])
   const [txPrev, setTxPrev] = useState<Transacao[]>([])
   const [txYear, setTxYear] = useState<Transacao[]>([])
+  const [comprasParceladas, setComprasParceladas] = useState<CompraParcelada[]>([])
   const [loading, setLoading] = useState(false)
   const [month, setMonth] = useState(new Date().getMonth())
   const [year, setYear] = useState(new Date().getFullYear())
@@ -87,25 +91,22 @@ function Dashboard() {
   }
 
   const fetchData = useCallback(async () => {
-    if (!phone) return
-    const client = getSupabase(); if (!client) return
+    if (!token) return
     setLoading(true)
-    const s = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    const e = new Date(year, month + 1, 0).toISOString().split('T')[0]
-    const [pm, py] = month === 0 ? [11, year - 1] : [month - 1, year]
-    const ps = `${py}-${String(pm + 1).padStart(2, '0')}-01`
-    const pe = new Date(py, pm + 1, 0).toISOString().split('T')[0]
-    const ys = `${year}-01-01`, ye = `${year}-12-31`
-    const [r1, r2, r3] = await Promise.all([
-      client.from('transacoes').select('*').eq('phone', phone).gte('data', s).lte('data', e).order('data', { ascending: false }),
-      client.from('transacoes').select('*').eq('phone', phone).gte('data', ps).lte('data', pe),
-      client.from('transacoes').select('*').eq('phone', phone).gte('data', ys).lte('data', ye)
-    ])
-    if (!r1.error && r1.data) setTxAll(r1.data)
-    if (!r2.error && r2.data) setTxPrev(r2.data)
-    if (!r3.error && r3.data) setTxYear(r3.data)
+    setAuthError(null)
+    try {
+      const res = await fetch(`/api/data?token=${encodeURIComponent(token)}&month=${month}&year=${year}`)
+      if (res.status === 401) { setAuthError('token_required'); setLoading(false); return }
+      if (res.status === 403) { setAuthError('token_invalido'); setLoading(false); return }
+      const data = await res.json()
+      setPhone(data.phone ?? '')
+      setTxAll(data.transacoes ?? [])
+      setTxPrev(data.transacoesPrevMes ?? [])
+      setTxYear(data.transacoesAno ?? [])
+      setComprasParceladas(data.comprasParceladas ?? [])
+    } catch { setAuthError('erro_rede') }
     setLoading(false)
-  }, [phone, month, year])
+  }, [token, month, year])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -162,22 +163,16 @@ function Dashboard() {
     return MONTHS_S.map((name, i) => ({ name, gastos: m[i].gastos, receitas: m[i].receitas, saldo: m[i].receitas - m[i].gastos }))
   }, [txYear])
 
-  // Parcelas ativas (txYear com padrão (N/M) na descrição)
+  // Parcelas ativas — agora vem direto da tabela compras_parceladas
   const parcelasAtivas = useMemo(() => {
-    const map: Record<string, { descricao: string; valorParcela: number; total: number; pagas: number; categoria: string; ultimaData: string }> = {}
-    txYear.forEach(t => {
-      if (t.tipo !== 'gasto') return
-      const m = t.descricao?.match(/^(.+) \((\d+)\/(\d+)\)$/)
-      if (!m) return
-      const [, base, nStr, totalStr] = m
-      const n = parseInt(nStr), total = parseInt(totalStr)
-      const key = base + '|' + total
-      if (!map[key]) map[key] = { descricao: base, valorParcela: t.valor, total, pagas: 0, categoria: t.categoria, ultimaData: t.data }
-      map[key].pagas = Math.max(map[key].pagas, n) // highest N seen, not count
-      if (t.data > map[key].ultimaData) map[key].ultimaData = t.data
+    return comprasParceladas.map(p => {
+      const start = new Date(p.data_inicio + 'T12:00:00')
+      const now = new Date()
+      const elapsed = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1
+      const pagas = Math.min(Math.max(elapsed, 0), p.n_parcelas)
+      return { ...p, pagas, restantes: p.n_parcelas - pagas, valorParcela: p.valor_parcela, total: p.n_parcelas }
     })
-    return Object.values(map)
-  }, [txYear])
+  }, [comprasParceladas])
 
   // Filtered transactions
   const filteredTx = useMemo(() => {
@@ -227,10 +222,7 @@ function Dashboard() {
             </div>
           </div>
           <div className="dash-header-controls" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input className="input-field" value={inputPhone} onChange={e => setInputPhone(e.target.value)} placeholder="55119999..." style={{ width: 145 }} onKeyDown={e => e.key === 'Enter' && setPhone(inputPhone)} />
-              <button className="btn-primary" onClick={() => setPhone(inputPhone)}>Buscar</button>
-            </div>
+            {phone && <span style={{ fontSize: '0.75rem', color: 'var(--text2)', padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>📱 +{phone}</span>}
             <select className="input-field" value={month} onChange={e => setMonth(Number(e.target.value))}>
               {MONTHS_S.map((m, i) => <option key={i} value={i}>{m}</option>)}
             </select>
@@ -244,14 +236,24 @@ function Dashboard() {
           </div>
         </header>
 
-        {!phone ? (
+        {authError === 'token_required' || (!token && !loading) ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <MessageCircle size={32} color="#6366f1" />
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <span style={{ fontSize: '2rem' }}>🔒</span>
             </div>
-            <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Bem-vindo ao Dashboard</h2>
-            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>Digite seu número de WhatsApp para visualizar seus dados</p>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Acesso Restrito</h2>
+            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>Este dashboard só pode ser acessado pelo link enviado no seu WhatsApp.</p>
           </div>
+        ) : authError === 'token_invalido' ? (
+          <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <span style={{ fontSize: '2rem' }}>❌</span>
+            </div>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Token Inválido</h2>
+            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>O link de acesso não é válido ou expirou. Peça um novo link pelo WhatsApp.</p>
+          </div>
+        ) : loading && !phone ? (
+          <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text2)' }}>Carregando...</div>
         ) : (
           <div>
             {/* Month label */}
