@@ -327,10 +327,8 @@ function Dashboard() {
             {/* Insights row */}
             {txAll.length > 0 && (
               <div className="insight-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 10, marginBottom: 20 }}>
-                <ICard emoji="📅" title="Dias registrados" value={`${new Set(txAll.map(t => t.data)).size} dias`} sub={`${MONTHS_PT[month]}`} color="#6366f1" />
                 <ICard emoji="🔮" title="Previsão do mês" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />
                 <ICard emoji="📈" title="Média diária" value={fmt(avgDailySpend)} sub="de gastos por dia" color="#ef4444" />
-                {pieData[0] && <ICard emoji="🏆" title="Top categoria" value={pieData[0].name} sub={fmt(pieData[0].value)} color={cc(pieData[0].name)} />}
               </div>
             )}
 
