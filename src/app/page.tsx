@@ -70,7 +70,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(false)
   const [month, setMonth] = useState(new Date().getMonth())
   const [year, setYear] = useState(new Date().getFullYear())
-  const [tab, setTab] = useState<'overview' | 'transactions' | 'annual' | 'budget' | 'cards'>('overview')
+  const [tab, setTab] = useState<'transactions' | 'cards' | 'budget' | 'annual' | 'overview'>('transactions')
   // Filters
   const [fType, setFType] = useState<'all' | 'gasto' | 'receita'>('all')
   const [fCat, setFCat] = useState('all')
@@ -335,15 +335,15 @@ function Dashboard() {
             )}
 
             {/* Tabs */}
-            <div className="tab-bar" style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'rgba(255,255,255,0.04)', padding: 4, borderRadius: 12, width: 'fit-content', border: '1px solid var(--border)' }}>
-              {(['overview', 'transactions', 'annual', 'budget', 'cards'] as const).map(t => (
+            <div className="tab-bar" style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'rgba(255,255,255,0.04)', padding: 4, borderRadius: 12, width: 'fit-content', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+              {(['transactions', 'cards', 'budget', 'annual', 'overview'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
                   style={{
                     padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s',
                     background: tab === t ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'transparent',
                     color: tab === t ? 'white' : '#94a3b8'
                   }}>
-                  {t === 'overview' ? '📊 Visão Geral' : t === 'transactions' ? '🧾 Transações' : t === 'annual' ? '📅 Anual' : t === 'budget' ? '🎯 Orçamento' : '💳 Cartões'}
+                  {t === 'transactions' ? '🧾 Transações' : t === 'cards' ? '💳 Cartões' : t === 'budget' ? '🎯 Orçamento' : t === 'annual' ? '📅 Anual' : '📊 Visão Geral'}
                 </button>
               ))}
             </div>
