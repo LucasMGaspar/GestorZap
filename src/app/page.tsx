@@ -727,22 +727,69 @@ function Dashboard() {
                   <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Meus Cartões</h3>
                   {cartoes.length === 0 ? <Empty msg="Nenhum cartão cadastrado" /> : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {cartoes.map(c => (
-                        <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: 12, background: 'linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))', border: '1px solid var(--border)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
-                              <CreditCard size={18} />
+                      {cartoes.map((c, idx) => {
+                        // Generate a pseudo-random harmonious color based on the card name
+                        const hues = [250, 320, 200, 280, 150];
+                        const hue = hues[c.nome_cartao.length % hues.length];
+                        const bg1 = `hsl(${hue}, 60%, 25%)`;
+                        const bg2 = `hsl(${hue + 30}, 60%, 15%)`;
+                        const accent = `hsl(${hue + 15}, 80%, 65%)`;
+
+                        return (
+                          <div key={c.id} style={{
+                            position: 'relative',
+                            padding: '20px',
+                            borderRadius: '16px',
+                            background: `linear-gradient(135deg, ${bg1}, ${bg2})`,
+                            boxShadow: '0 10px 30px -10px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            overflow: 'hidden',
+                            minHeight: '140px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            color: 'white',
+                            fontFamily: 'monospace'
+                          }}>
+                            {/* Decorative background circles */}
+                            <div style={{ position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+                            <div style={{ position: 'absolute', bottom: -20, left: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'sans-serif' }}>
+                                  {c.nome_cartao}
+                                </div>
+                                <div style={{ width: 36, height: 26, borderRadius: 4, background: 'linear-gradient(135deg, #d4af37 0%, #aa8000 100%)', opacity: 0.8, position: 'relative', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.2)' }}>
+                                  {/* Fake chip lines */}
+                                  <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'rgba(0,0,0,0.2)' }} />
+                                  <div style={{ position: 'absolute', left: '30%', top: 0, bottom: 0, width: 1, background: 'rgba(0,0,0,0.2)' }} />
+                                  <div style={{ position: 'absolute', left: '70%', top: 0, bottom: 0, width: 1, background: 'rgba(0,0,0,0.2)' }} />
+                                </div>
+                              </div>
+                              <button onClick={() => deleteCard(c.id)} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', padding: 6, cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')} title="Excluir Cartão">
+                                <X size={14} />
+                              </button>
                             </div>
-                            <div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{c.nome_cartao}</div>
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>Fecha dia {c.dia_fechamento} · Vence dia {c.dia_vencimento}</div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', position: 'relative', zIndex: 1, marginTop: 24 }}>
+                              <div style={{ display: 'flex', gap: 20 }}>
+                                <div>
+                                  <div style={{ fontSize: '0.55rem', opacity: 0.6, letterSpacing: '0.05em', marginBottom: 2 }}>FECHAMENTO</div>
+                                  <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>Dia {String(c.dia_fechamento).padStart(2, '0')}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.55rem', opacity: 0.6, letterSpacing: '0.05em', marginBottom: 2 }}>VENCIMENTO</div>
+                                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: accent }}>Dia {String(c.dia_vencimento).padStart(2, '0')}</div>
+                                </div>
+                              </div>
+                              <div style={{ opacity: 0.8 }}>
+                                <CreditCard size={28} />
+                              </div>
                             </div>
                           </div>
-                          <button onClick={() => deleteCard(c.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', padding: 8, cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Excluir Cartão">
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
