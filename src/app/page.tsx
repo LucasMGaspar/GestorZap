@@ -715,7 +715,7 @@ function MCard({ label, value, sub, icon, color, grad, pct, pctInvert, highlight
           <div style={{ padding: 7, borderRadius: 9, background: grad, color }}>{icon}</div>
         </div>
       </div>
-      <div style={{ fontSize: '1.6rem', fontWeight: 800, color, lineHeight: 1, marginBottom: 5 }}>{value}</div>
+      <div style={{ fontSize: '1.35rem', fontWeight: 800, color, lineHeight: 1.1, marginBottom: 5, letterSpacing: '-0.03em', wordBreak: 'break-word', whiteSpace: 'normal' }}>{value}</div>
       <div style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>{sub}</div>
     </div>
   )
