@@ -55,7 +55,7 @@ const CT = ({ active, payload, label }: any) => {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-type CompraParcelada = { id: string; phone: string; descricao: string; valor_total: number; n_parcelas: number; valor_parcela: number; categoria: string; data_inicio: string; ativa: boolean; criado_em: string }
+type CompraParcelada = { id: string; phone: string; descricao: string; valor_total: number; n_parcelas: number; valor_parcela: number; categoria: string; data_inicio: string; ativa: boolean; criado_em: string; cartao_id?: string }
 
 function Dashboard() {
   const sp = useSearchParams()
