@@ -28,6 +28,7 @@ export type Transacao = {
   descricao: string
   data: string
   criado_em: string
+  cartao_id?: string
 }
 
 export type Cartao = {

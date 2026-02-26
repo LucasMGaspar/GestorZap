@@ -557,7 +557,7 @@ function Dashboard() {
                 {filteredTx.length === 0 ? <Empty /> : (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      {filteredTx.map((t, i) => <TRow key={t.id} t={t} i={i} />)}
+                      {filteredTx.map((t, i) => <TRow key={t.id} t={t} i={i} cartoes={cartoes} />)}
                     </div>
                     <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}><strong style={{ color: 'var(--text)' }}>{filteredTx.length}</strong> transações</span>
@@ -646,7 +646,14 @@ function Dashboard() {
                                 <div style={{ width: 30, height: 30, borderRadius: 8, background: `rgba(${h2r(cc(p.categoria))},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cc(p.categoria) }}>{ci(p.categoria)}</div>
                                 <div>
                                   <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{p.descricao}</div>
-                                  <div style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>{p.categoria} · {fmt(p.valorParcela)}/parcela</div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>{p.categoria} · {fmt(p.valorParcela)}/parcela</span>
+                                    {p.cartao_id && cartoes.find(c => c.id === p.cartao_id) && (
+                                      <span style={{ fontSize: '0.67rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <CreditCard size={10} /> {cartoes.find(c => c.id === p.cartao_id)?.nome_cartao}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <div style={{ textAlign: 'right' }}>
@@ -871,9 +878,11 @@ function ICard({ emoji, title, value, sub, color }: { emoji: string; title: stri
   )
 }
 
-function TRow({ t, i }: { t: Transacao; i: number }) {
+function TRow({ t, i, cartoes = [] }: { t: Transacao; i: number, cartoes?: Cartao[] }) {
   const isG = t.tipo === 'gasto'
   const col = isG ? '#ef4444' : '#10b981'
+  const cartao = t.cartao_id ? cartoes.find(c => c.id === t.cartao_id) : null
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', transition: 'all 0.15s' }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)' }}
@@ -881,8 +890,13 @@ function TRow({ t, i }: { t: Transacao; i: number }) {
       <div style={{ width: 36, height: 36, borderRadius: 10, background: `rgba(${h2r(cc(t.categoria))},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: cc(t.categoria) }}>{ci(t.categoria)}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.descricao}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.67rem', padding: '2px 7px', borderRadius: 20, background: `rgba(${h2r(cc(t.categoria))},0.12)`, color: cc(t.categoria), fontWeight: 600 }}>{t.categoria}</span>
+          {cartao && (
+            <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text3)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <CreditCard size={10} /> {cartao.nome_cartao}
+            </span>
+          )}
           <span style={{ fontSize: '0.68rem', color: 'var(--text3)' }}>{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
         </div>
       </div>
