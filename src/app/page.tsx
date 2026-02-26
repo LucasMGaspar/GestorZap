@@ -887,24 +887,27 @@ function TRow({ t, i, cartoes = [] }: { t: Transacao; i: number, cartoes?: Carta
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', transition: 'all 0.15s' }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)' }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: `rgba(${h2r(cc(t.categoria))},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: cc(t.categoria) }}>{ci(t.categoria)}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.descricao}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.67rem', padding: '2px 7px', borderRadius: 20, background: `rgba(${h2r(cc(t.categoria))},0.12)`, color: cc(t.categoria), fontWeight: 600 }}>{t.categoria}</span>
+      <div style={{ width: 38, height: 38, borderRadius: 10, background: `rgba(${h2r(cc(t.categoria))},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: cc(t.categoria) }}>{ci(t.categoria)}</div>
+
+      <div style={{ flex: 1, minWidth: 0, paddingRight: 4 }}>
+        <div style={{ fontSize: '0.88rem', fontWeight: 600, wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 4 }}>{t.descricao}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.65rem', padding: '2px 7px', borderRadius: 20, background: `rgba(${h2r(cc(t.categoria))},0.12)`, color: cc(t.categoria), fontWeight: 600 }}>{t.categoria}</span>
           {cartao && (
-            <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text3)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text3)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
               <CreditCard size={10} /> {cartao.nome_cartao}
             </span>
           )}
-          <span style={{ fontSize: '0.68rem', color: 'var(--text3)' }}>{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 20, background: isG ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)', flexShrink: 0 }}>
-        {isG ? <ArrowDownCircle size={11} color={col} /> : <ArrowUpCircle size={11} color={col} />}
-        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: col }}>{isG ? 'Gasto' : 'Receita'}</span>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 5 }}>
+        <div style={{ fontSize: '0.92rem', fontWeight: 700, color: col }}>{isG ? '-' : '+'}{fmt(t.valor)}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: 0.85 }}>
+          {isG ? <ArrowDownCircle size={11} color={col} /> : <ArrowUpCircle size={11} color={col} />}
+          <span style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text3)' }}>{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+        </div>
       </div>
-      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: col, minWidth: 90, textAlign: 'right' }}>{isG ? '-' : '+'}{fmt(t.valor)}</div>
     </div>
   )
 }
