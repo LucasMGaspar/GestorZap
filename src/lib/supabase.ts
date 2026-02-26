@@ -29,3 +29,12 @@ export type Transacao = {
   data: string
   criado_em: string
 }
+
+export type Cartao = {
+  id: string
+  phone: string
+  nome_cartao: string
+  dia_fechamento: number
+  dia_vencimento: number
+  criado_em: string
+}

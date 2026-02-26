@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, Suspense, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getSupabase, Transacao } from '@/lib/supabase'
+import { getSupabase, Transacao, Cartao } from '@/lib/supabase'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie, Legend, LineChart, Line
@@ -34,7 +34,7 @@ const CAT: Record<string, { color: string; icon: React.ReactNode }> = {
 }
 const cc = (c: string) => CAT[c]?.color ?? '#94a3b8'
 const ci = (c: string) => CAT[c]?.icon ?? <MoreHorizontal size={13} />
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const fmt = (v: number) => { const parts = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).formatToParts(v); return parts.map(p => p.type === 'currency' ? p.value : p.value).join('').replace('R$', 'R$ ') }
 const h2r = (hex: string) => { const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); return `${r},${g},${b}` }
 
 // ─── Tooltip Components ───────────────────────────────────────────────────────
@@ -66,10 +66,11 @@ function Dashboard() {
   const [txPrev, setTxPrev] = useState<Transacao[]>([])
   const [txYear, setTxYear] = useState<Transacao[]>([])
   const [comprasParceladas, setComprasParceladas] = useState<CompraParcelada[]>([])
+  const [cartoes, setCartoes] = useState<Cartao[]>([])
   const [loading, setLoading] = useState(false)
   const [month, setMonth] = useState(new Date().getMonth())
   const [year, setYear] = useState(new Date().getFullYear())
-  const [tab, setTab] = useState<'overview' | 'transactions' | 'annual' | 'budget'>('overview')
+  const [tab, setTab] = useState<'overview' | 'transactions' | 'annual' | 'budget' | 'cards'>('overview')
   // Filters
   const [fType, setFType] = useState<'all' | 'gasto' | 'receita'>('all')
   const [fCat, setFCat] = useState('all')
@@ -82,6 +83,10 @@ function Dashboard() {
   // Budgets (localStorage)
   const [budgets, setBudgets] = useState<Record<string, number>>({})
   const [editBudget, setEditBudget] = useState<Record<string, string>>({})
+
+  // Form for new Card
+  const [newCard, setNewCard] = useState({ nome_cartao: '', dia_fechamento: 1, dia_vencimento: 10 })
+  const [savingCard, setSavingCard] = useState(false)
 
   // Load budgets
   useEffect(() => { try { const b = localStorage.getItem('fin_budgets'); if (b) setBudgets(JSON.parse(b)) } catch { } }, [])
@@ -116,21 +121,45 @@ function Dashboard() {
       const ps = `${py}-${String(pm + 1).padStart(2, '0')}-01`
       const pe = new Date(py, pm + 1, 0).toISOString().split('T')[0]
       const ys = `${year}-01-01`, ye = `${year}-12-31`
-      const [r1, r2, r3, r4] = await Promise.all([
+      const [r1, r2, r3, r4, r5] = await Promise.all([
         client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', s).lte('data', e).order('data', { ascending: false }),
         client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', ps).lte('data', pe),
         client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', ys).lte('data', ye),
         client.from('compras_parceladas').select('*').eq('phone', resolvedPhone).eq('ativa', true).order('criado_em', { ascending: false }),
+        client.from('cartoes').select('*').eq('phone', resolvedPhone).order('nome_cartao', { ascending: true })
       ])
       if (r1.data) setTxAll(r1.data)
       if (r2.data) setTxPrev(r2.data)
       if (r3.data) setTxYear(r3.data)
       setComprasParceladas(r4.data ?? [])
+      setCartoes(r5.data ?? [])
     } catch { setAuthError('erro_rede') }
     setLoading(false)
   }, [token, month, year])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  const addCard = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCard.nome_cartao.trim() || !phone) return
+    setSavingCard(true)
+    const client = getSupabase()
+    if (client) {
+      const resp = await client.from('cartoes').insert({ phone, ...newCard }).select().single()
+      if (resp.data) setCartoes(prev => [...prev, resp.data].sort((a, b) => a.nome_cartao.localeCompare(b.nome_cartao)))
+      setNewCard({ nome_cartao: '', dia_fechamento: 1, dia_vencimento: 10 })
+    }
+    setSavingCard(false)
+  }
+
+  const deleteCard = async (id: string) => {
+    if (!confirm('Deseja excluir este cartão?')) return
+    const client = getSupabase()
+    if (client) {
+      await client.from('cartoes').delete().eq('id', id)
+      setCartoes(prev => prev.filter(c => c.id !== id))
+    }
+  }
 
   // ─── Derived ──────────────────────────────────────────────────────────────
   const gastos = txAll.filter(t => t.tipo === 'gasto')
@@ -307,14 +336,14 @@ function Dashboard() {
 
             {/* Tabs */}
             <div className="tab-bar" style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'rgba(255,255,255,0.04)', padding: 4, borderRadius: 12, width: 'fit-content', border: '1px solid var(--border)' }}>
-              {(['overview', 'transactions', 'annual', 'budget'] as const).map(t => (
+              {(['overview', 'transactions', 'annual', 'budget', 'cards'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
                   style={{
                     padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s',
                     background: tab === t ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'transparent',
                     color: tab === t ? 'white' : '#94a3b8'
                   }}>
-                  {t === 'overview' ? '📊 Visão Geral' : t === 'transactions' ? '🧾 Transações' : t === 'annual' ? '📅 Anual' : '🎯 Orçamento'}
+                  {t === 'overview' ? '📊 Visão Geral' : t === 'transactions' ? '🧾 Transações' : t === 'annual' ? '📅 Anual' : t === 'budget' ? '🎯 Orçamento' : '💳 Cartões'}
                 </button>
               ))}
             </div>
@@ -690,6 +719,67 @@ function Dashboard() {
                 </div>
               </div>
             )}
+
+            {/* ─── CARDS TAB ────────────────────────────────────────────── */}
+            {tab === 'cards' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20, alignItems: 'start' }}>
+                <div className="glass" style={{ padding: 24 }}>
+                  <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Meus Cartões</h3>
+                  {cartoes.length === 0 ? <Empty msg="Nenhum cartão cadastrado" /> : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {cartoes.map(c => (
+                        <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: 12, background: 'linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))', border: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
+                              <CreditCard size={18} />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{c.nome_cartao}</div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>Fecha dia {c.dia_fechamento} · Vence dia {c.dia_vencimento}</div>
+                            </div>
+                          </div>
+                          <button onClick={() => deleteCard(c.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', padding: 8, cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Excluir Cartão">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="glass" style={{ padding: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CreditCard size={16} color="#10b981" /></div>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>Novo Cartão</h3>
+                  </div>
+
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text2)', marginBottom: 20, lineHeight: 1.5 }}>
+                    Cadastre a data de fechamento e vencimento das suas faturas para receber avisos do automáticos no seu WhatsApp para não esquecer de pagar!
+                  </p>
+
+                  <form onSubmit={addCard} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>NOME DO CARTÃO (Ex: Nubank)</label>
+                      <input className="input-field" type="text" value={newCard.nome_cartao} onChange={e => setNewCard(v => ({ ...v, nome_cartao: e.target.value }))} placeholder="Nome do cartão" required style={{ width: '100%' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DIA FECHAMENTO</label>
+                        <input className="input-field" type="number" min="1" max="31" value={newCard.dia_fechamento} onChange={e => setNewCard(v => ({ ...v, dia_fechamento: parseInt(e.target.value) || 1 }))} required style={{ width: '100%' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DIA VENCIMENTO</label>
+                        <input className="input-field" type="number" min="1" max="31" value={newCard.dia_vencimento} onChange={e => setNewCard(v => ({ ...v, dia_vencimento: parseInt(e.target.value) || 1 }))} required style={{ width: '100%' }} />
+                      </div>
+                    </div>
+                    <button type="submit" disabled={savingCard || !newCard.nome_cartao.trim()} className="btn-primary" style={{ marginTop: 8, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      {savingCard ? <RefreshCw size={16} className="animate-spin" /> : <>+</>}
+                      Adicionar Cartão
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -715,7 +805,7 @@ function MCard({ label, value, sub, icon, color, grad, pct, pctInvert, highlight
           <div style={{ padding: 7, borderRadius: 9, background: grad, color }}>{icon}</div>
         </div>
       </div>
-      <div style={{ fontSize: '1.35rem', fontWeight: 800, color, lineHeight: 1.1, marginBottom: 5, letterSpacing: '-0.03em', wordBreak: 'break-word', whiteSpace: 'normal' }}>{value}</div>
+      <div style={{ fontSize: 'var(--mcard-val, 1.35rem)', fontWeight: 800, color, lineHeight: 1.1, marginBottom: 5, letterSpacing: '-0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
       <div style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>{sub}</div>
     </div>
   )

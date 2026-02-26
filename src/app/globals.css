@@ -235,6 +235,7 @@ select.input-field {
   /* Glass cards: smaller radius on mobile */
   .glass {
     border-radius: 14px;
+    --mcard-val: 1.15rem;
   }
 
   /* Inputs/buttons: larger tap targets */
