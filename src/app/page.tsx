@@ -90,6 +90,7 @@ function Dashboard() {
 
   // Edit Transaction
   const [editingTx, setEditingTx] = useState<Transacao | null>(null)
+  const [editingTxOriginalData, setEditingTxOriginalData] = useState<string>('')
   const [savingTx, setSavingTx] = useState(false)
 
   // Load budgets
@@ -183,6 +184,14 @@ function Dashboard() {
       }).eq('id', editingTx.id).select().single()
 
       if (data && !error) {
+        if (editingTx.tipo === 'parcela' && editingTx.compra_parcelada_id) {
+          await client.from('faturas').update({
+            valor: data.valor,
+            descricao: data.descricao,
+            vencimento: data.data,
+          }).eq('compra_parcelada_id', editingTx.compra_parcelada_id)
+            .eq('vencimento', editingTxOriginalData)
+        }
         setTxAll(prev => prev.map(t => t.id === data.id ? data : t))
         setEditingTx(null)
       } else {
@@ -277,7 +286,7 @@ function Dashboard() {
       const elapsed = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1
       const pagas = Math.min(Math.max(elapsed, 0), p.n_parcelas)
       return { ...p, pagas, restantes: p.n_parcelas - pagas, valorParcela: p.valor_parcela, total: p.n_parcelas }
-    })
+    }).filter(p => p.restantes > 0)
   }, [comprasParceladas])
 
   // Filtered transactions
@@ -611,7 +620,7 @@ function Dashboard() {
                 {filteredTx.length === 0 ? <Empty /> : (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      {filteredTx.map((t, i) => <TRow key={t.id} t={t} i={i} cartoes={cartoes} onEdit={() => setEditingTx(t)} />)}
+                      {filteredTx.map((t, i) => <TRow key={t.id} t={t} i={i} cartoes={cartoes} onEdit={() => { setEditingTx(t); setEditingTxOriginalData(t.data) }} />)}
                     </div>
                     <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}><strong style={{ color: 'var(--text)' }}>{filteredTx.length}</strong> transações</span>
@@ -901,6 +910,11 @@ function Dashboard() {
               <button onClick={() => setEditingTx(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <form onSubmit={saveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {editingTx.tipo === 'parcela' && (
+                <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', fontSize: '0.75rem', color: '#a78bfa' }}>
+                  ⚠️ Você está editando uma parcela. A fatura correspondente será atualizada automaticamente.
+                </div>
+              )}
               <div>
                 <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DESCRIÇÃO</label>
                 <input className="input-field" type="text" value={editingTx.descricao || ''} onChange={e => setEditingTx({ ...editingTx, descricao: e.target.value })} required style={{ width: '100%' }} />
