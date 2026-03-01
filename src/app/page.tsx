@@ -72,7 +72,7 @@ function Dashboard() {
   const [year, setYear] = useState(new Date().getFullYear())
   const [tab, setTab] = useState<'transactions' | 'cards' | 'budget' | 'annual' | 'overview'>('transactions')
   // Filters
-  const [fType, setFType] = useState<'all' | 'gasto' | 'receita'>('all')
+  const [fType, setFType] = useState<'all' | 'gasto' | 'receita' | 'parcela'>('all')
   const [fCat, setFCat] = useState('all')
   const [fMin, setFMin] = useState('')
   const [fMax, setFMax] = useState('')
@@ -160,7 +160,11 @@ function Dashboard() {
     if (!confirm('Deseja excluir este cartão?')) return
     const client = getSupabase()
     if (client) {
-      await client.from('cartoes').delete().eq('id', id)
+      const { error } = await client.from('cartoes').delete().eq('id', id)
+      if (error) {
+        alert('Não foi possível excluir. Este cartão possui transações vinculadas.')
+        return
+      }
       setCartoes(prev => prev.filter(c => c.id !== id))
     }
   }
@@ -189,28 +193,45 @@ function Dashboard() {
   }
 
   // ─── Derived ──────────────────────────────────────────────────────────────
-  const gastos = txAll.filter(t => t.tipo === 'gasto')
-  const receitas = txAll.filter(t => t.tipo === 'receita')
-  const totalG = gastos.reduce((a, t) => a + t.valor, 0)
+  // Separação por método de pagamento
+  const gastosDebit  = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)  // PIX / débito
+  const gastosCredit = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id) // crédito avulso
+  const parcelas     = txAll.filter(t => t.tipo === 'parcela')
+  const receitas     = txAll.filter(t => t.tipo === 'receita')
+
+  const totalDebit    = gastosDebit.reduce((a, t) => a + t.valor, 0)
+  const totalCredit   = gastosCredit.reduce((a, t) => a + t.valor, 0)
+  const totalParcelas = parcelas.reduce((a, t) => a + t.valor, 0)
+  const totalG = totalDebit + totalCredit + totalParcelas // competência: tudo que foi comprometido
   const totalR = receitas.reduce((a, t) => a + t.valor, 0)
-  const saldo = totalR - totalG
-  const pGastos = txPrev.filter(t => t.tipo === 'gasto').reduce((a, t) => a + t.valor, 0)
+
+  // Saldo real = o que efetivamente saiu (ou vai sair neste mês) da conta bancária
+  // Exclui crédito avulso que só será cobrado na próxima fatura
+  const saldoReal = totalR - totalDebit - totalParcelas
+  const saldo     = totalR - totalG // comprometido (inclui crédito pendente)
+
+  const pGastos   = txPrev.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela').reduce((a, t) => a + t.valor, 0)
   const pReceitas = txPrev.filter(t => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0)
   const pct = (now: number, prev: number) => prev === 0 ? null : Math.round((now - prev) / prev * 100)
   const pctG = pct(totalG, pGastos), pctR = pct(totalR, pReceitas)
 
-  // Category map
+  // Category map — inclui parcelas como gasto (competência)
   const catMap = useMemo(() => {
     const m: Record<string, number> = {}
-    gastos.forEach(t => { m[t.categoria] = (m[t.categoria] || 0) + t.valor })
+    txAll.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela')
+      .forEach(t => { m[t.categoria] = (m[t.categoria] || 0) + t.valor })
     return m
-  }, [gastos])
+  }, [txAll])
   const pieData = Object.entries(catMap).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }))
 
-  // Daily map
+  // Daily map — parcelas tratadas como gasto (competência)
   const areaData = useMemo(() => {
     const m: Record<string, { gastos: number; receitas: number; acumulado?: number }> = {}
-    txAll.forEach(t => { if (!m[t.data]) m[t.data] = { gastos: 0, receitas: 0 }; t.tipo === 'gasto' ? m[t.data].gastos += t.valor : m[t.data].receitas += t.valor })
+    txAll.forEach(t => {
+      if (!m[t.data]) m[t.data] = { gastos: 0, receitas: 0 }
+      if (t.tipo === 'gasto' || t.tipo === 'parcela') m[t.data].gastos += t.valor
+      else if (t.tipo === 'receita') m[t.data].receitas += t.valor
+    })
     let acc = 0
     return Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).map(([data, v]) => {
       acc += v.receitas - v.gastos
@@ -218,26 +239,33 @@ function Dashboard() {
     })
   }, [txAll])
 
-  // Forecast
-  const today = new Date().getDate()
+  // Forecast — só faz sentido para o mês atual
+  const _today = new Date()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const isCurrentMonthYear = month === _today.getMonth() && year === _today.getFullYear()
+  const today = isCurrentMonthYear ? _today.getDate() : daysInMonth
   const avgDailySpend = today > 0 ? totalG / today : 0
-  const forecastTotal = avgDailySpend * daysInMonth
+  const forecastTotal = isCurrentMonthYear ? avgDailySpend * daysInMonth : totalG
   const forecastRemaining = forecastTotal - totalG
 
-  // Day-of-week heatmap
+  // Day-of-week heatmap — inclui parcelas
   const dowData = useMemo(() => {
     const m = Array(7).fill(0)
-    gastos.forEach(t => { const d = new Date(t.data + 'T12:00:00'); m[d.getDay()] += t.valor })
+    txAll.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela')
+      .forEach(t => { const d = new Date(t.data + 'T12:00:00'); m[d.getDay()] += t.valor })
     const max = Math.max(...m, 1)
     return WEEK_DAYS.map((label, i) => ({ label, value: m[i], pct: m[i] / max }))
-  }, [gastos])
+  }, [txAll])
 
-  // Annual data
+  // Annual data — inclui parcelas como gasto
   const annualData = useMemo(() => {
     const m: Record<number, { gastos: number; receitas: number }> = {}
     for (let i = 0; i < 12; i++) m[i] = { gastos: 0, receitas: 0 }
-    txYear.forEach(t => { const mo = new Date(t.data + 'T12:00:00').getMonth(); t.tipo === 'gasto' ? m[mo].gastos += t.valor : m[mo].receitas += t.valor })
+    txYear.forEach(t => {
+      const mo = new Date(t.data + 'T12:00:00').getMonth()
+      if (t.tipo === 'gasto' || t.tipo === 'parcela') m[mo].gastos += t.valor
+      else if (t.tipo === 'receita') m[mo].receitas += t.valor
+    })
     return MONTHS_S.map((name, i) => ({ name, gastos: m[i].gastos, receitas: m[i].receitas, saldo: m[i].receitas - m[i].gastos }))
   }, [txYear])
 
@@ -345,17 +373,18 @@ function Dashboard() {
 
             {/* Summary Cards */}
             <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 16 }}>
-              <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastos.length} transações`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
+              <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastosDebit.length + gastosCredit.length + parcelas.length} transações`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
               <MCard label="Total Receitas" value={fmt(totalR)} sub={`${receitas.length} transações`} icon={<ArrowUpCircle size={18} />} color="#10b981" grad="rgba(16,185,129,0.1)" pct={pctR} />
-              <MCard label="Saldo" value={fmt(saldo)} sub={saldo >= 0 ? 'Em dia ✨' : 'Atenção ⚠️'} icon={saldo >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldo >= 0 ? '#10b981' : '#ef4444'} grad={saldo >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
-              <MCard label="Gasto Médio/tx" value={fmt(gastos.length ? totalG / gastos.length : 0)} sub="por transação" icon={<BarChart2 size={18} />} color="#6366f1" grad="rgba(99,102,241,0.1)" />
+              <MCard label="Saldo Real" value={fmt(saldoReal)} sub="Débito/PIX + Parcelas" icon={saldoReal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldoReal >= 0 ? '#10b981' : '#ef4444'} grad={saldoReal >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
+              <MCard label="Crédito a Pagar" value={fmt(totalCredit)} sub={gastosCredit.length > 0 ? `${gastosCredit.length} compra${gastosCredit.length > 1 ? 's' : ''} na fatura` : 'Nenhuma compra avulsa no crédito'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
             </div>
 
             {/* Insights row */}
             {txAll.length > 0 && (
               <div className="insight-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 10, marginBottom: 20 }}>
-                <ICard emoji="🔮" title="Previsão do mês" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />
+                {isCurrentMonthYear && <ICard emoji="🔮" title="Previsão do mês" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />}
                 <ICard emoji="📈" title="Média diária" value={fmt(avgDailySpend)} sub="de gastos por dia" color="#ef4444" />
+                <ICard emoji="💰" title="Saldo comprometido" value={fmt(saldo)} sub={saldo >= 0 ? 'Incluindo crédito pendente' : 'Atenção ao crédito!'} color={saldo >= 0 ? '#10b981' : '#ef4444'} />
               </div>
             )}
 
@@ -486,22 +515,22 @@ function Dashboard() {
                         <Zap size={18} color="#f59e0b" />
                       </div>
                       <div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Previsão de fechamento</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{isCurrentMonthYear ? 'Previsão de fechamento' : 'Total do mês'}</div>
                         <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f59e0b' }}>{fmt(forecastTotal)}</div>
                       </div>
                     </div>
                     <div style={{ flex: 1, minWidth: 200 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text2)', marginBottom: 6 }}>
-                        <span>Gasto até hoje: {fmt(totalG)}</span>
-                        <span>Dia {today}/{daysInMonth}</span>
+                        <span>{isCurrentMonthYear ? `Gasto até hoje: ${fmt(totalG)}` : `Total gasto: ${fmt(totalG)}`}</span>
+                        <span>{isCurrentMonthYear ? `Dia ${today}/${daysInMonth}` : 'Mês encerrado'}</span>
                       </div>
                       <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${Math.min(today / daysInMonth * 100, 100)}%`, borderRadius: 4, background: 'linear-gradient(90deg,#6366f1,#f59e0b)' }} />
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>Restante estimado</div>
-                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ef4444' }}>{fmt(forecastRemaining)}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>{isCurrentMonthYear ? 'Restante estimado' : 'Saldo do mês'}</div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: isCurrentMonthYear ? '#ef4444' : saldo >= 0 ? '#10b981' : '#ef4444' }}>{fmt(isCurrentMonthYear ? forecastRemaining : saldo)}</div>
                     </div>
                   </div>
                 </div>
@@ -533,15 +562,15 @@ function Dashboard() {
                     <div>
                       <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>TIPO</label>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        {['all', 'gasto', 'receita'].map(t => (
-                          <button key={t} onClick={() => setFType(t as any)}
+                        {(['all', 'gasto', 'receita', 'parcela'] as const).map(t => (
+                          <button key={t} onClick={() => setFType(t)}
                             style={{
                               padding: '5px 10px', borderRadius: 8, border: '1px solid', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
                               background: fType === t ? 'rgba(99,102,241,0.2)' : 'transparent',
                               borderColor: fType === t ? 'rgba(99,102,241,0.5)' : 'var(--border)',
                               color: fType === t ? '#a78bfa' : 'var(--text2)'
                             }}>
-                            {t === 'all' ? 'Todos' : t === 'gasto' ? 'Gastos' : 'Receitas'}
+                            {t === 'all' ? 'Todos' : t === 'gasto' ? 'Gastos' : t === 'receita' ? 'Receitas' : 'Parcelas'}
                           </button>
                         ))}
                       </div>
@@ -587,7 +616,7 @@ function Dashboard() {
                     <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}><strong style={{ color: 'var(--text)' }}>{filteredTx.length}</strong> transações</span>
                       <div style={{ display: 'flex', gap: 16, fontSize: '0.78rem' }}>
-                        <span style={{ color: '#ef4444' }}>Gastos: <strong>{fmt(filteredTx.filter(t => t.tipo === 'gasto').reduce((a, t) => a + t.valor, 0))}</strong></span>
+                        <span style={{ color: '#ef4444' }}>Gastos: <strong>{fmt(filteredTx.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela').reduce((a, t) => a + t.valor, 0))}</strong></span>
                         <span style={{ color: '#10b981' }}>Receitas: <strong>{fmt(filteredTx.filter(t => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0))}</strong></span>
                       </div>
                     </div>
@@ -944,10 +973,20 @@ function ICard({ emoji, title, value, sub, color }: { emoji: string; title: stri
   )
 }
 
-function TRow({ t, i, cartoes = [], onEdit }: { t: Transacao; i: number, cartoes?: Cartao[], onEdit?: () => void }) {
-  const isG = t.tipo === 'gasto'
-  const col = isG ? '#ef4444' : '#10b981'
+function TRow({ t, i: _i, cartoes = [], onEdit }: { t: Transacao; i: number, cartoes?: Cartao[], onEdit?: () => void }) {
+  const isReceita       = t.tipo === 'receita'
+  const isParcela       = t.tipo === 'parcela'
+  const isCreditoAvulso = t.tipo === 'gasto' && !!t.cartao_id
+  const col = isReceita ? '#10b981' : '#ef4444'
   const cartao = t.cartao_id ? cartoes.find(c => c.id === t.cartao_id) : null
+
+  const metodoBadge = isParcela
+    ? { label: 'Parcela', bg: 'rgba(99,102,241,0.15)', color: '#a78bfa' }
+    : isCreditoAvulso
+    ? { label: 'Crédito', bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' }
+    : !isReceita
+    ? { label: 'Débito/PIX', bg: 'rgba(71,85,105,0.15)', color: '#64748b' }
+    : null
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', transition: 'all 0.15s' }}
@@ -959,6 +998,11 @@ function TRow({ t, i, cartoes = [], onEdit }: { t: Transacao; i: number, cartoes
         <div style={{ fontSize: '0.88rem', fontWeight: 600, wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 4 }}>{t.descricao}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.65rem', padding: '2px 7px', borderRadius: 20, background: `rgba(${h2r(cc(t.categoria))},0.12)`, color: cc(t.categoria), fontWeight: 600 }}>{t.categoria}</span>
+          {metodoBadge && (
+            <span style={{ fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px', background: metodoBadge.bg, color: metodoBadge.color, fontWeight: 700 }}>
+              {metodoBadge.label}
+            </span>
+          )}
           {cartao && (
             <span style={{ fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text3)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
               <CreditCard size={10} /> {cartao.nome_cartao}
@@ -968,14 +1012,14 @@ function TRow({ t, i, cartoes = [], onEdit }: { t: Transacao; i: number, cartoes
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 5 }}>
-        <div style={{ fontSize: '0.92rem', fontWeight: 700, color: col }}>{isG ? '-' : '+'}{fmt(t.valor)}</div>
+        <div style={{ fontSize: '0.92rem', fontWeight: 700, color: col }}>{isReceita ? '+' : '-'}{fmt(t.valor)}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: 0.85 }}>
           {onEdit && (
             <button onClick={onEdit} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 600, marginRight: 4 }} title="Editar Transação" onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}>
               <Edit3 size={13} style={{ marginRight: 4 }} /> <span className="hide-on-mobile">Editar</span>
             </button>
           )}
-          {isG ? <ArrowDownCircle size={11} color={col} /> : <ArrowUpCircle size={11} color={col} />}
+          {isReceita ? <ArrowUpCircle size={11} color={col} /> : <ArrowDownCircle size={11} color={col} />}
           <span style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text3)' }}>{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
         </div>
       </div>

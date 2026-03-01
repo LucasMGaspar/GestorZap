@@ -22,13 +22,14 @@ export const supabase = typeof window !== 'undefined' &&
 export type Transacao = {
   id: string
   phone: string
-  tipo: 'gasto' | 'receita'
+  tipo: 'gasto' | 'receita' | 'parcela' | 'parcelado'
   valor: number
   categoria: string
   descricao: string
   data: string
   criado_em: string
   cartao_id?: string
+  compra_parcelada_id?: string
 }
 
 export type Cartao = {
