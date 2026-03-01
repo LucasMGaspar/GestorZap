@@ -12,7 +12,7 @@ import {
   Wallet, RefreshCw, TrendingDown, TrendingUp, ArrowDownCircle, ArrowUpCircle,
   Calendar, MessageCircle, ShoppingCart, Car, Heart, BookOpen, Gamepad2, Home,
   Shirt, CreditCard, ArrowLeftRight, MoreHorizontal, BarChart2, Search,
-  Download, Target, ChevronUp, ChevronDown, AlertTriangle, Zap, Filter, X
+  Download, Target, ChevronUp, ChevronDown, AlertTriangle, Zap, Filter, X, Edit3
 } from 'lucide-react'
 
 // ─── Types & Constants ────────────────────────────────────────────────────────
@@ -88,6 +88,10 @@ function Dashboard() {
   const [newCard, setNewCard] = useState({ nome_cartao: '', dia_fechamento: 1, dia_vencimento: 10 })
   const [savingCard, setSavingCard] = useState(false)
 
+  // Edit Transaction
+  const [editingTx, setEditingTx] = useState<Transacao | null>(null)
+  const [savingTx, setSavingTx] = useState(false)
+
   // Load budgets
   useEffect(() => { try { const b = localStorage.getItem('fin_budgets'); if (b) setBudgets(JSON.parse(b)) } catch { } }, [])
   const saveBudget = (cat: string, val: string) => {
@@ -159,6 +163,29 @@ function Dashboard() {
       await client.from('cartoes').delete().eq('id', id)
       setCartoes(prev => prev.filter(c => c.id !== id))
     }
+  }
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingTx) return
+    setSavingTx(true)
+    const client = getSupabase()
+    if (client) {
+      const { data, error } = await client.from('transacoes').update({
+        descricao: editingTx.descricao,
+        valor: editingTx.valor,
+        categoria: editingTx.categoria,
+        data: editingTx.data,
+      }).eq('id', editingTx.id).select().single()
+
+      if (data && !error) {
+        setTxAll(prev => prev.map(t => t.id === data.id ? data : t))
+        setEditingTx(null)
+      } else {
+        alert("Erro ao salvar a edição. Tente novamente.")
+      }
+    }
+    setSavingTx(false)
   }
 
   // ─── Derived ──────────────────────────────────────────────────────────────
@@ -555,7 +582,7 @@ function Dashboard() {
                 {filteredTx.length === 0 ? <Empty /> : (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      {filteredTx.map((t, i) => <TRow key={t.id} t={t} i={i} cartoes={cartoes} />)}
+                      {filteredTx.map((t, i) => <TRow key={t.id} t={t} i={i} cartoes={cartoes} onEdit={() => setEditingTx(t)} />)}
                     </div>
                     <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}><strong style={{ color: 'var(--text)' }}>{filteredTx.length}</strong> transações</span>
@@ -835,6 +862,47 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingTx && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 400, padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Editar Transação</h3>
+              <button onClick={() => setEditingTx(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer' }}><X size={18} /></button>
+            </div>
+            <form onSubmit={saveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DESCRIÇÃO</label>
+                <input className="input-field" type="text" value={editingTx.descricao || ''} onChange={e => setEditingTx({ ...editingTx, descricao: e.target.value })} required style={{ width: '100%' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>VALOR (R$)</label>
+                  <input className="input-field" type="number" step="0.01" value={editingTx.valor} onChange={e => setEditingTx({ ...editingTx, valor: parseFloat(e.target.value) || 0 })} required style={{ width: '100%' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DATA</label>
+                  <input className="input-field" type="date" value={editingTx.data} onChange={e => setEditingTx({ ...editingTx, data: e.target.value })} required style={{ width: '100%' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>CATEGORIA</label>
+                <select className="input-field" value={editingTx.categoria} onChange={e => setEditingTx({ ...editingTx, categoria: e.target.value })} style={{ width: '100%' }}>
+                  {cats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{ marginTop: 8, display: 'flex', gap: 10 }}>
+                <button type="button" onClick={() => setEditingTx(null)} className="btn-ghost" style={{ flex: 1, padding: 12, justifyContent: 'center' }}>Cancelar</button>
+                <button type="submit" disabled={savingTx} className="btn-primary" style={{ flex: 1, padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {savingTx ? <RefreshCw size={16} className="animate-spin" /> : 'Salvar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -876,7 +944,7 @@ function ICard({ emoji, title, value, sub, color }: { emoji: string; title: stri
   )
 }
 
-function TRow({ t, i, cartoes = [] }: { t: Transacao; i: number, cartoes?: Cartao[] }) {
+function TRow({ t, i, cartoes = [], onEdit }: { t: Transacao; i: number, cartoes?: Cartao[], onEdit?: () => void }) {
   const isG = t.tipo === 'gasto'
   const col = isG ? '#ef4444' : '#10b981'
   const cartao = t.cartao_id ? cartoes.find(c => c.id === t.cartao_id) : null
@@ -902,6 +970,11 @@ function TRow({ t, i, cartoes = [] }: { t: Transacao; i: number, cartoes?: Carta
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 5 }}>
         <div style={{ fontSize: '0.92rem', fontWeight: 700, color: col }}>{isG ? '-' : '+'}{fmt(t.valor)}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: 0.85 }}>
+          {onEdit && (
+            <button onClick={onEdit} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Editar">
+              <Edit3 size={11} style={{ marginRight: 2 }} />
+            </button>
+          )}
           {isG ? <ArrowDownCircle size={11} color={col} /> : <ArrowUpCircle size={11} color={col} />}
           <span style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text3)' }}>{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
         </div>
