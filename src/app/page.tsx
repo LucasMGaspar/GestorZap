@@ -15,27 +15,11 @@ import {
   Download, Target, ChevronUp, ChevronDown, AlertTriangle, Zap, Filter, X, Edit3
 } from 'lucide-react'
 
-// ─── Types & Constants ────────────────────────────────────────────────────────
-const MONTHS_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-const MONTHS_S = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-const WEEK_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-
-const CAT: Record<string, { color: string; icon: React.ReactNode }> = {
-  'Alimentação': { color: '#f59e0b', icon: <ShoppingCart size={13} /> },
-  'Transporte': { color: '#3b82f6', icon: <Car size={13} /> },
-  'Saúde': { color: '#10b981', icon: <Heart size={13} /> },
-  'Educação': { color: '#8b5cf6', icon: <BookOpen size={13} /> },
-  'Lazer': { color: '#ec4899', icon: <Gamepad2 size={13} /> },
-  'Moradia': { color: '#f97316', icon: <Home size={13} /> },
-  'Roupas': { color: '#06b6d4', icon: <Shirt size={13} /> },
-  'Assinaturas': { color: '#6366f1', icon: <CreditCard size={13} /> },
-  'Transferência': { color: '#64748b', icon: <ArrowLeftRight size={13} /> },
-  'Outros': { color: '#94a3b8', icon: <MoreHorizontal size={13} /> },
-}
-const cc = (c: string) => CAT[c]?.color ?? '#94a3b8'
-const ci = (c: string) => CAT[c]?.icon ?? <MoreHorizontal size={13} />
-const fmt = (v: number) => { const parts = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).formatToParts(v); return parts.map(p => p.type === 'currency' ? p.value : p.value).join('').replace('R$', 'R$ ') }
-const h2r = (hex: string) => { const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); return `${r},${g},${b}` }
+import { Empty } from '@/components/Empty'
+import { ICard } from '@/components/ICard'
+import { MCard } from '@/components/MCard'
+import { TRow } from '@/components/TRow'
+import { MONTHS_PT, MONTHS_S, WEEK_DAYS, CAT, cc, ci, fmt, h2r } from '@/lib/utils'
 
 // ─── Tooltip Components ───────────────────────────────────────────────────────
 const CT = ({ active, payload, label }: any) => {
@@ -1020,101 +1004,6 @@ function Dashboard() {
 
     </div>
   )
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function MCard({ label, value, sub, icon, color, grad, pct, pctInvert, highlight }: { label: string; value: string; sub: string; icon: React.ReactNode; color: string; grad: string; pct?: number | null; pctInvert?: boolean; highlight?: boolean }) {
-  const up = pct != null && pct >= 0
-  const good = pctInvert ? !up : up
-  return (
-    <div className="glass" style={{ padding: 20, position: 'relative', overflow: 'hidden', ...(highlight ? { boxShadow: `0 0 40px ${color}22` } : {}) }}>
-      <div style={{ position: 'absolute', top: 0, right: 0, width: 100, height: 100, background: grad, borderRadius: '50%', transform: 'translate(40%,-40%)', filter: 'blur(18px)' }} />
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {pct != null && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '2px 7px', borderRadius: 20, background: good ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', fontSize: '0.68rem', fontWeight: 700, color: good ? '#10b981' : '#ef4444' }}>
-              {up ? <ChevronUp size={10} /> : <ChevronDown size={10} />}{Math.abs(pct)}%
-            </span>
-          )}
-          <div style={{ padding: 7, borderRadius: 9, background: grad, color }}>{icon}</div>
-        </div>
-      </div>
-      <div style={{ fontSize: 'var(--mcard-val, 1.35rem)', fontWeight: 800, color, lineHeight: 1.1, marginBottom: 5, letterSpacing: '-0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
-      <div style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>{sub}</div>
-    </div>
-  )
-}
-
-function ICard({ emoji, title, value, sub, color }: { emoji: string; title: string; value: string; sub: string; color: string }) {
-  return (
-    <div className="glass" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{ fontSize: '1.4rem', flexShrink: 0 }}>{emoji}</div>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: '0.65rem', color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{title}</div>
-        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
-        <div style={{ fontSize: '0.7rem', color }}>{sub}</div>
-      </div>
-    </div>
-  )
-}
-
-function TRow({ t, i: _i, cartoes = [], onEdit }: { t: Transacao; i: number, cartoes?: Cartao[], onEdit?: () => void }) {
-  const isReceita = t.tipo === 'receita'
-  const isParcela = t.tipo === 'parcela'
-  const isCreditoAvulso = t.tipo === 'gasto' && !!t.cartao_id
-  const col = isReceita ? '#10b981' : '#ef4444'
-  const cartao = t.cartao_id ? cartoes.find(c => c.id === t.cartao_id) : null
-
-  const metodoBadge = isParcela
-    ? { label: 'Parcela', bg: 'rgba(99,102,241,0.15)', color: '#a78bfa' }
-    : isCreditoAvulso
-      ? { label: 'Crédito', bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' }
-      : !isReceita
-        ? { label: 'Débito/PIX', bg: 'rgba(71,85,105,0.15)', color: '#64748b' }
-        : null
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', transition: 'all 0.15s' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)' }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)' }}>
-      <div style={{ width: 38, height: 38, borderRadius: 10, background: `rgba(${h2r(cc(t.categoria))},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: cc(t.categoria) }}>{ci(t.categoria)}</div>
-
-      <div style={{ flex: 1, minWidth: 0, paddingRight: 4 }}>
-        <div style={{ fontSize: '0.88rem', fontWeight: 600, wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 4 }}>{t.descricao}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.65rem', padding: '2px 7px', borderRadius: 20, background: `rgba(${h2r(cc(t.categoria))},0.12)`, color: cc(t.categoria), fontWeight: 600 }}>{t.categoria}</span>
-          {metodoBadge && (
-            <span style={{ fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px', background: metodoBadge.bg, color: metodoBadge.color, fontWeight: 700 }}>
-              {metodoBadge.label}
-            </span>
-          )}
-          {cartao && (
-            <span style={{ fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text3)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <CreditCard size={10} /> {cartao.nome_cartao}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 5 }}>
-        <div style={{ fontSize: '0.92rem', fontWeight: 700, color: col }}>{isReceita ? '+' : '-'}{fmt(t.valor)}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: 0.85 }}>
-          {onEdit && (
-            <button onClick={onEdit} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 600, marginRight: 4 }} title="Editar Transação" onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}>
-              <Edit3 size={13} style={{ marginRight: 4 }} /> <span className="hide-on-mobile">Editar</span>
-            </button>
-          )}
-          {isReceita ? <ArrowUpCircle size={11} color={col} /> : <ArrowDownCircle size={11} color={col} />}
-          <span style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text3)' }}>{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Empty({ msg = 'Nenhuma transação neste período' }: { msg?: string }) {
-  return <div style={{ textAlign: 'center', padding: '40px 20px' }}><div style={{ fontSize: '2rem', marginBottom: 10 }}>📭</div><p style={{ color: 'var(--text2)', fontSize: '0.88rem' }}>{msg}</p></div>
 }
 
 // ─── Export ───────────────────────────────────────────────────────────────────
