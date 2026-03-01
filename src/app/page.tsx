@@ -116,15 +116,25 @@ function Dashboard() {
         .single()
 
       if (userErr || !userData) { setAuthError('token_invalido'); setLoading(false); return }
-      const resolvedPhone = userData.phone
-      setPhone(resolvedPhone)
+      // Step 2: Calculate date ranges
+      const pmMonth = month === 0 ? 11 : month - 1
+      const pmYear = month === 0 ? year - 1 : year
 
-      // Step 2: fetch data directly from Supabase
-      const s = `${year}-${String(month + 1).padStart(2, '0')}-01`
+      const prevPmMonth = pmMonth === 0 ? 11 : pmMonth - 1
+      const prevPmYear = pmMonth === 0 ? pmYear - 1 : pmYear
+
+      const [pm, py] = [pmMonth, pmYear]
+
+      // Get data for the current month view. Since credit cards bill usually close before the month ends,
+      // a purchase made late in the PREVIOUS month might belong to the CURRENT month's bill.
+      // E.g: February 25th purchase on a card that closes on the 20th belongs to the March bill.
+      // So we need to fetch since the 1st day of the previous month to be safe.
+      const s = `${pmYear}-${String(pmMonth + 1).padStart(2, '0')}-01`
       const e = new Date(year, month + 1, 0).toISOString().split('T')[0]
-      const [pm, py] = month === 0 ? [11, year - 1] : [month - 1, year]
-      const ps = `${py}-${String(pm + 1).padStart(2, '0')}-01`
+
+      const ps = `${prevPmYear}-${String(prevPmMonth + 1).padStart(2, '0')}-01`
       const pe = new Date(py, pm + 1, 0).toISOString().split('T')[0]
+
       const ys = `${year}-01-01`, ye = `${year}-12-31`
       const [r1, r2, r3, r4, r5] = await Promise.all([
         client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', s).lte('data', e).order('data', { ascending: false }),
@@ -133,11 +143,57 @@ function Dashboard() {
         client.from('compras_parceladas').select('*').eq('phone', resolvedPhone).eq('ativa', true).order('criado_em', { ascending: false }),
         client.from('cartoes').select('*').eq('phone', resolvedPhone).order('nome_cartao', { ascending: true })
       ])
-      if (r1.data) setTxAll(r1.data)
-      if (r2.data) setTxPrev(r2.data)
-      if (r3.data) setTxYear(r3.data)
+
+      const fetchedCards = r5.data ?? []
+
+      // Help function to determine which MONTH (0-11) and YEAR a specific transaction truly belongs to
+      const getRealMonthYear = (t: Transacao, cards: Cartao[]) => {
+        const txDate = new Date(t.data + 'T12:00:00')
+        const txMo = txDate.getMonth()
+        const txYr = txDate.getFullYear()
+
+        if (t.tipo !== 'gasto' || !t.cartao_id) return { m: txMo, y: txYr } // PIX, Debit, Income, Installment => pure competence/date
+
+        const card = cards.find(c => c.id === t.cartao_id)
+        if (!card) return { m: txMo, y: txYr }
+
+        // It's a credit card expense
+        // If purchase day >= closing day, it jumps to the NEXT month's bill
+        const buyDay = txDate.getDate()
+        let targetMo = txMo
+        let targetYr = txYr
+
+        if (buyDay >= card.dia_fechamento) {
+          targetMo += 1
+          if (targetMo > 11) {
+            targetMo = 0
+            targetYr += 1
+          }
+        }
+        return { m: targetMo, y: targetYr }
+      }
+
+      // Filter txAll for the EXACT currently selected month/year based on REAL cycle
+      const processTx = (txs: Transacao[]) => {
+        return txs.filter(t => {
+          const target = getRealMonthYear(t, fetchedCards)
+          return target.m === month && target.y === year
+        })
+      }
+
+      // Filter txPrev for the PREVIOUS month based on REAL cycle
+      const processPrevTx = (txs: Transacao[]) => {
+        return txs.filter(t => {
+          const target = getRealMonthYear(t, fetchedCards)
+          return target.m === pm && target.y === py
+        })
+      }
+
+      if (r1.data) setTxAll(processTx(r1.data))
+      if (r2.data) setTxPrev(processPrevTx(r2.data))
+      if (r3.data) setTxYear(r3.data) // We leave annual raw to handle natively inside its own useMemo later
       setComprasParceladas(r4.data ?? [])
-      setCartoes(r5.data ?? [])
+      setCartoes(fetchedCards)
     } catch { setAuthError('erro_rede') }
     setLoading(false)
   }, [token, month, year])
@@ -203,13 +259,13 @@ function Dashboard() {
 
   // ─── Derived ──────────────────────────────────────────────────────────────
   // Separação por método de pagamento
-  const gastosDebit  = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)  // PIX / débito
+  const gastosDebit = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)  // PIX / débito
   const gastosCredit = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id) // crédito avulso
-  const parcelas     = txAll.filter(t => t.tipo === 'parcela')
-  const receitas     = txAll.filter(t => t.tipo === 'receita')
+  const parcelas = txAll.filter(t => t.tipo === 'parcela')
+  const receitas = txAll.filter(t => t.tipo === 'receita')
 
-  const totalDebit    = gastosDebit.reduce((a, t) => a + t.valor, 0)
-  const totalCredit   = gastosCredit.reduce((a, t) => a + t.valor, 0)
+  const totalDebit = gastosDebit.reduce((a, t) => a + t.valor, 0)
+  const totalCredit = gastosCredit.reduce((a, t) => a + t.valor, 0)
   const totalParcelas = parcelas.reduce((a, t) => a + t.valor, 0)
   const totalG = totalDebit + totalCredit + totalParcelas // competência: tudo que foi comprometido
   const totalR = receitas.reduce((a, t) => a + t.valor, 0)
@@ -217,9 +273,9 @@ function Dashboard() {
   // Saldo real = o que efetivamente saiu (ou vai sair neste mês) da conta bancária
   // Exclui crédito avulso que só será cobrado na próxima fatura
   const saldoReal = totalR - totalDebit - totalParcelas
-  const saldo     = totalR - totalG // comprometido (inclui crédito pendente)
+  const saldo = totalR - totalG // comprometido (inclui crédito pendente)
 
-  const pGastos   = txPrev.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela').reduce((a, t) => a + t.valor, 0)
+  const pGastos = txPrev.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela').reduce((a, t) => a + t.valor, 0)
   const pReceitas = txPrev.filter(t => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0)
   const pct = (now: number, prev: number) => prev === 0 ? null : Math.round((now - prev) / prev * 100)
   const pctG = pct(totalG, pGastos), pctR = pct(totalR, pReceitas)
@@ -271,12 +327,24 @@ function Dashboard() {
     const m: Record<number, { gastos: number; receitas: number }> = {}
     for (let i = 0; i < 12; i++) m[i] = { gastos: 0, receitas: 0 }
     txYear.forEach(t => {
-      const mo = new Date(t.data + 'T12:00:00').getMonth()
+      let mo = new Date(t.data + 'T12:00:00').getMonth()
+
+      // Aplicar regra de fechamento do cartão de crédito
+      if (t.tipo === 'gasto' && t.cartao_id) {
+        const card = cartoes.find(c => c.id === t.cartao_id)
+        if (card) {
+          const buyDay = new Date(t.data + 'T12:00:00').getDate()
+          if (buyDay >= card.dia_fechamento) {
+            mo = mo === 11 ? 0 : mo + 1
+          }
+        }
+      }
+
       if (t.tipo === 'gasto' || t.tipo === 'parcela') m[mo].gastos += t.valor
       else if (t.tipo === 'receita') m[mo].receitas += t.valor
     })
     return MONTHS_S.map((name, i) => ({ name, gastos: m[i].gastos, receitas: m[i].receitas, saldo: m[i].receitas - m[i].gastos }))
-  }, [txYear])
+  }, [txYear, cartoes])
 
   // Parcelas ativas — agora vem direto da tabela compras_parceladas
   const parcelasAtivas = useMemo(() => {
@@ -988,8 +1056,8 @@ function ICard({ emoji, title, value, sub, color }: { emoji: string; title: stri
 }
 
 function TRow({ t, i: _i, cartoes = [], onEdit }: { t: Transacao; i: number, cartoes?: Cartao[], onEdit?: () => void }) {
-  const isReceita       = t.tipo === 'receita'
-  const isParcela       = t.tipo === 'parcela'
+  const isReceita = t.tipo === 'receita'
+  const isParcela = t.tipo === 'parcela'
   const isCreditoAvulso = t.tipo === 'gasto' && !!t.cartao_id
   const col = isReceita ? '#10b981' : '#ef4444'
   const cartao = t.cartao_id ? cartoes.find(c => c.id === t.cartao_id) : null
@@ -997,10 +1065,10 @@ function TRow({ t, i: _i, cartoes = [], onEdit }: { t: Transacao; i: number, car
   const metodoBadge = isParcela
     ? { label: 'Parcela', bg: 'rgba(99,102,241,0.15)', color: '#a78bfa' }
     : isCreditoAvulso
-    ? { label: 'Crédito', bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' }
-    : !isReceita
-    ? { label: 'Débito/PIX', bg: 'rgba(71,85,105,0.15)', color: '#64748b' }
-    : null
+      ? { label: 'Crédito', bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' }
+      : !isReceita
+        ? { label: 'Débito/PIX', bg: 'rgba(71,85,105,0.15)', color: '#64748b' }
+        : null
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', transition: 'all 0.15s' }}
