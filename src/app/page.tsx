@@ -972,7 +972,7 @@ function TRow({ t, i, cartoes = [], onEdit }: { t: Transacao; i: number, cartoes
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: 0.85 }}>
           {onEdit && (
             <button onClick={onEdit} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 600, marginRight: 4 }} title="Editar Transação" onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}>
-              <Edit3 size={13} style={{ marginRight: 4 }} /> Editar
+              <Edit3 size={13} style={{ marginRight: 4 }} /> <span className="hide-on-mobile">Editar</span>
             </button>
           )}
           {isG ? <ArrowDownCircle size={11} color={col} /> : <ArrowUpCircle size={11} color={col} />}

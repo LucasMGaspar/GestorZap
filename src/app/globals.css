@@ -316,4 +316,9 @@ select.input-field {
   .insight-grid {
     grid-template-columns: 1fr 1fr !important;
   }
+
+  /* Utils */
+  .hide-on-mobile {
+    display: none !important;
+  }
 }
