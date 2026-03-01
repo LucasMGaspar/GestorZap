@@ -247,28 +247,31 @@ function Dashboard() {
 
   // ─── Derived ──────────────────────────────────────────────────────────────
   // Separação por método de pagamento
-  const gastosDebit = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)  // PIX / débito
-  const gastosCredit = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id) // crédito avulso
-  const parcelas = txAll.filter(t => t.tipo === 'parcela')
-  const receitas = txAll.filter(t => t.tipo === 'receita')
+  const gastosDebit    = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)  // PIX / débito
+  const gastosCredit   = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id) // crédito avulso (fatura)
+  const parcelas       = txAll.filter(t => t.tipo === 'parcela')
+  const parcelasCartao = parcelas.filter(t => !!t.cartao_id)  // parcelas no cartão (fatura)
+  const parcelasDebito = parcelas.filter(t => !t.cartao_id)   // parcelas sem cartão (saem do banco)
+  const receitas       = txAll.filter(t => t.tipo === 'receita')
 
-  const totalDebit = gastosDebit.reduce((a, t) => a + t.valor, 0)
-  const totalCredit = gastosCredit.reduce((a, t) => a + t.valor, 0)
-  const totalParcelas = parcelas.reduce((a, t) => a + t.valor, 0)
-  const totalG = totalDebit + totalCredit + totalParcelas // competência: tudo que foi comprometido
+  const totalDebit      = gastosDebit.reduce((a, t) => a + t.valor, 0)
+  const totalParcDebito = parcelasDebito.reduce((a, t) => a + t.valor, 0)
+  // Modelo caixa: Total Gastos = só o que sai do banco (débito/PIX + financiamentos sem cartão)
+  const totalG = totalDebit + totalParcDebito
   const totalR = receitas.reduce((a, t) => a + t.valor, 0)
+  // Fatura = crédito avulso + parcelas no cartão (pagas quando vencer a fatura)
+  const totalCredit = gastosCredit.reduce((a, t) => a + t.valor, 0) + parcelasCartao.reduce((a, t) => a + t.valor, 0)
 
-  // Saldo real = o que efetivamente saiu (ou vai sair neste mês) da conta bancária
-  // Exclui crédito avulso que só será cobrado na próxima fatura
-  const saldoReal = totalR - totalDebit - totalParcelas
-  const saldo = totalR - totalG // comprometido (inclui crédito pendente)
+  // Saldo real = receitas menos o que efetivamente saiu do banco (exclui crédito)
+  const saldoReal = totalR - totalDebit - totalParcDebito
+  const saldo = totalR - totalG - totalCredit // comprometido (inclui fatura pendente)
 
-  const pGastos = txPrev.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela').reduce((a, t) => a + t.valor, 0)
+  const pGastos = txPrev.filter(t => (t.tipo === 'gasto' && !t.cartao_id) || (t.tipo === 'parcela' && !t.cartao_id)).reduce((a, t) => a + t.valor, 0)
   const pReceitas = txPrev.filter(t => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0)
   const pct = (now: number, prev: number) => prev === 0 ? null : Math.round((now - prev) / prev * 100)
   const pctG = pct(totalG, pGastos), pctR = pct(totalR, pReceitas)
 
-  // Category map — inclui parcelas como gasto (competência)
+  // Category map — inclui todos os gastos/parcelas para visão de onde gastou
   const catMap = useMemo(() => {
     const m: Record<string, number> = {}
     txAll.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela')
@@ -438,10 +441,10 @@ function Dashboard() {
 
             {/* Summary Cards */}
             <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 16 }}>
-              <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastosDebit.length + gastosCredit.length + parcelas.length} transações`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
+              <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastosDebit.length + parcelasDebito.length} transações no débito/PIX`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
               <MCard label="Total Receitas" value={fmt(totalR)} sub={`${receitas.length} transações`} icon={<ArrowUpCircle size={18} />} color="#10b981" grad="rgba(16,185,129,0.1)" pct={pctR} />
-              <MCard label="Saldo Real" value={fmt(saldoReal)} sub="Débito/PIX + Parcelas" icon={saldoReal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldoReal >= 0 ? '#10b981' : '#ef4444'} grad={saldoReal >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
-              <MCard label="Crédito a Pagar" value={fmt(totalCredit)} sub={gastosCredit.length > 0 ? `${gastosCredit.length} compra${gastosCredit.length > 1 ? 's' : ''} na fatura` : 'Nenhuma compra avulsa no crédito'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
+              <MCard label="Saldo Real" value={fmt(saldoReal)} sub="Débito/PIX (crédito não incluído)" icon={saldoReal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldoReal >= 0 ? '#10b981' : '#ef4444'} grad={saldoReal >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
+              <MCard label="Crédito a Pagar" value={fmt(totalCredit)} sub={(gastosCredit.length + parcelasCartao.length) > 0 ? `${gastosCredit.length + parcelasCartao.length} lançamento${(gastosCredit.length + parcelasCartao.length) > 1 ? 's' : ''} na fatura` : 'Nenhum lançamento na fatura'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
             </div>
 
             {/* Insights row */}
