@@ -116,6 +116,10 @@ function Dashboard() {
         .single()
 
       if (userErr || !userData) { setAuthError('token_invalido'); setLoading(false); return }
+
+      const resolvedPhone = userData.phone
+      setPhone(resolvedPhone)
+
       // Step 2: Calculate date ranges
       const pmMonth = month === 0 ? 11 : month - 1
       const pmYear = month === 0 ? year - 1 : year
