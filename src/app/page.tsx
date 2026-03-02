@@ -387,9 +387,9 @@ function Dashboard() {
     }).filter(p => p.restantes > 0)
   }, [comprasParceladas])
 
-  // Filtered transactions
+  // Filtered transactions — excluir crédito (aparecem só em Detalhes da Fatura e Parcelas Ativas)
   const filteredTx = useMemo(() => {
-    let tx = [...txAll]
+    let tx = txAll.filter(t => !t.cartao_id)
     if (fType !== 'all') tx = tx.filter(t => t.tipo === fType)
     if (fCat !== 'all') tx = tx.filter(t => t.categoria === fCat)
     if (fMin) tx = tx.filter(t => t.valor >= parseFloat(fMin))
