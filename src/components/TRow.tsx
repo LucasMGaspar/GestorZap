@@ -1,7 +1,7 @@
 import React from 'react'
 import { Edit3, ArrowDownCircle, ArrowUpCircle, CreditCard } from 'lucide-react'
 import { Transacao, Cartao } from '@/lib/supabase'
-import { cc, ci, fmt, h2r, MONTHS_S } from '@/lib/utils'
+import { cc, ci, fmt, h2r } from '@/lib/utils'
 
 export function TRow({ t, i: _i, cartoes = [], onEdit }: { t: Transacao; i: number, cartoes?: Cartao[], onEdit?: () => void }) {
     const isReceita = t.tipo === 'receita'
@@ -9,19 +9,6 @@ export function TRow({ t, i: _i, cartoes = [], onEdit }: { t: Transacao; i: numb
     const isCreditoAvulso = t.tipo === 'gasto' && !!t.cartao_id
     const col = isReceita ? '#10b981' : '#ef4444'
     const cartao = t.cartao_id ? cartoes.find(c => c.id === t.cartao_id) : null
-
-    // Badge "Fatura Abr/26" para crédito avulso que pula de ciclo
-    const faturaBadge = (() => {
-        if (!isCreditoAvulso || !cartao) return null
-        const d = new Date(t.data + 'T12:00:00')
-        const buyDay = d.getDate()
-        const buyMo = d.getMonth()
-        const buyYr = d.getFullYear()
-        if (buyDay < cartao.dia_fechamento) return null // mesmo mês, não precisa badge
-        const fatMo = buyMo === 11 ? 0 : buyMo + 1
-        const fatYr = buyMo === 11 ? buyYr + 1 : buyYr
-        return `Fatura ${MONTHS_S[fatMo]}/${String(fatYr).slice(2)}`
-    })()
 
     const metodoBadge = isParcela
         ? { label: 'Parcela', bg: 'rgba(99,102,241,0.15)', color: '#a78bfa' }
@@ -57,11 +44,6 @@ export function TRow({ t, i: _i, cartoes = [], onEdit }: { t: Transacao; i: numb
                     {cartao && (
                         <span style={{ fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text3)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                             <CreditCard size={10} /> {cartao.nome_cartao}
-                        </span>
-                    )}
-                    {faturaBadge && (
-                        <span style={{ fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontWeight: 700 }}>
-                            {faturaBadge}
                         </span>
                     )}
                 </div>

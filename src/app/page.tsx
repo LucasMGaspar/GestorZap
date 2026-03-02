@@ -46,13 +46,13 @@ function Dashboard() {
   const [token] = useState(sp.get('token') || '')
   const [authError, setAuthError] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
-  const [txAll, setTxAll] = useState<Transacao[]>([])       // lista: por data de compra
-  const [txCycle, setTxCycle] = useState<Transacao[]>([])   // cards: por ciclo de fatura
+  const [txAll, setTxAll] = useState<Transacao[]>([])       // por ciclo de fatura
   const [txPrev, setTxPrev] = useState<Transacao[]>([])
   const [txYear, setTxYear] = useState<Transacao[]>([])
   const [comprasParceladas, setComprasParceladas] = useState<CompraParcelada[]>([])
   const [cartoes, setCartoes] = useState<Cartao[]>([])
   const [loading, setLoading] = useState(false)
+  const [pagandoFatura, setPagandoFatura] = useState<string | null>(null) // cartao_id sendo pago
   const [month, setMonth] = useState(new Date().getMonth())
   const [year, setYear] = useState(new Date().getFullYear())
   const [tab, setTab] = useState<'transactions' | 'cards' | 'budget' | 'annual' | 'overview'>('transactions')
@@ -162,15 +162,7 @@ function Dashboard() {
         return { m: targetMo, y: targetYr }
       }
 
-      // Lista de transações: por data de compra (o usuário vê as decisões no mês em que aconteceram)
-      const processTxByDate = (txs: Transacao[]) => {
-        return txs.filter(t => {
-          const d = new Date(t.data + 'T12:00:00')
-          return d.getMonth() === month && d.getFullYear() === year
-        })
-      }
-
-      // Cards financeiros: por ciclo de fatura (Crédito a Pagar mostra o que vence neste mês)
+      // Lista e cards: por ciclo de fatura (pizza comprada no dia do fechamento vai pro próximo mês)
       const processTxByCycle = (txs: Transacao[]) => {
         return txs.filter(t => {
           const target = getRealMonthYear(t, fetchedCards)
@@ -186,10 +178,7 @@ function Dashboard() {
         })
       }
 
-      if (r1.data) {
-        setTxAll(processTxByDate(r1.data))
-        setTxCycle(processTxByCycle(r1.data))
-      }
+      if (r1.data) setTxAll(processTxByCycle(r1.data))
       if (r2.data) setTxPrev(processPrevTx(r2.data))
       if (r3.data) setTxYear(r3.data) // We leave annual raw to handle natively inside its own useMemo later
       setComprasParceladas(r4.data ?? [])
@@ -257,23 +246,49 @@ function Dashboard() {
     setSavingTx(false)
   }
 
+  const pagarFatura = async (cartaoId: string, itens: Transacao[]) => {
+    const cartao = cartoes.find(c => c.id === cartaoId)
+    const total = itens.reduce((a, t) => a + t.valor, 0)
+    if (!confirm(`Confirmar pagamento da fatura ${cartao?.nome_cartao} de ${fmt(total)}?\n\nUma transação PIX/débito será criada no valor total.`)) return
+    setPagandoFatura(cartaoId)
+    const client = getSupabase()
+    if (client) {
+      const hoje = new Date().toISOString().split('T')[0]
+      // 1. Registrar pagamento como PIX/débito (sai do banco)
+      await client.from('transacoes').insert({
+        phone, tipo: 'gasto', valor: total,
+        categoria: 'Transferência',
+        descricao: `Pagamento fatura ${cartao?.nome_cartao}`,
+        data: hoje, cartao_id: null,
+        criado_em: new Date().toISOString()
+      })
+      // 2. Marcar faturas das parcelas como pagas
+      const parcelas = itens.filter(t => t.tipo === 'parcela' && t.compra_parcelada_id)
+      for (const p of parcelas) {
+        await client.from('faturas').update({ status: 'pago' })
+          .eq('compra_parcelada_id', p.compra_parcelada_id!)
+          .eq('vencimento', p.data)
+      }
+      await fetchData()
+    }
+    setPagandoFatura(null)
+  }
+
   // ─── Derived ──────────────────────────────────────────────────────────────
-  // Lista de transações: por data de compra (txAll)
+  // Separação por método de pagamento (todos por ciclo de fatura)
   const gastosDebit    = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)
+  const gastosCredit   = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id)
+  const parcelasCartao = txAll.filter(t => t.tipo === 'parcela' && !!t.cartao_id)
   const parcelasDebito = txAll.filter(t => t.tipo === 'parcela' && !t.cartao_id)
   const receitas       = txAll.filter(t => t.tipo === 'receita')
-
-  // Cards financeiros: por ciclo de fatura (txCycle) — Crédito a Pagar preciso
-  const cycleCredit    = txCycle.filter(t => t.tipo === 'gasto' && !!t.cartao_id)
-  const cycleParcelas  = txCycle.filter(t => t.tipo === 'parcela' && !!t.cartao_id)
 
   const totalDebit      = gastosDebit.reduce((a, t) => a + t.valor, 0)
   const totalParcDebito = parcelasDebito.reduce((a, t) => a + t.valor, 0)
   // Modelo caixa: Total Gastos = só o que sai do banco (débito/PIX + financiamentos sem cartão)
   const totalG = totalDebit + totalParcDebito
   const totalR = receitas.reduce((a, t) => a + t.valor, 0)
-  // Fatura = itens do ciclo de fatura deste mês (inclui compras de meses anteriores que fecham agora)
-  const totalCredit = cycleCredit.reduce((a, t) => a + t.valor, 0) + cycleParcelas.reduce((a, t) => a + t.valor, 0)
+  // Fatura = crédito avulso + parcelas no cartão do ciclo deste mês
+  const totalCredit = gastosCredit.reduce((a, t) => a + t.valor, 0) + parcelasCartao.reduce((a, t) => a + t.valor, 0)
 
   // Saldo real = receitas menos o que efetivamente saiu do banco (exclui crédito)
   const saldoReal = totalR - totalDebit - totalParcDebito
@@ -457,15 +472,15 @@ function Dashboard() {
               <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastosDebit.length + parcelasDebito.length} transações no débito/PIX`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
               <MCard label="Total Receitas" value={fmt(totalR)} sub={`${receitas.length} transações`} icon={<ArrowUpCircle size={18} />} color="#10b981" grad="rgba(16,185,129,0.1)" pct={pctR} />
               <MCard label="Saldo Real" value={fmt(saldoReal)} sub="Débito/PIX (crédito não incluído)" icon={saldoReal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldoReal >= 0 ? '#10b981' : '#ef4444'} grad={saldoReal >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
-              <MCard label="Crédito a Pagar" value={fmt(totalCredit)} sub={(cycleCredit.length + cycleParcelas.length) > 0 ? `${cycleCredit.length + cycleParcelas.length} lançamento${(cycleCredit.length + cycleParcelas.length) > 1 ? 's' : ''} na fatura` : 'Nenhum lançamento na fatura'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
+              <MCard label="Crédito a Pagar" value={fmt(totalCredit)} sub={(gastosCredit.length + parcelasCartao.length) > 0 ? `${gastosCredit.length + parcelasCartao.length} lançamento${(gastosCredit.length + parcelasCartao.length) > 1 ? 's' : ''} na fatura` : 'Nenhum lançamento na fatura'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
             </div>
 
             {/* Detalhe Crédito a Pagar */}
             {totalCredit > 0 && (() => {
-              const itens = [...cycleCredit, ...cycleParcelas]
-              const porCartao = cartoes.reduce<Record<string, { nome: string; itens: Transacao[] }>>((acc, c) => {
+              const itens = [...gastosCredit, ...parcelasCartao]
+              const porCartao = cartoes.reduce<Record<string, { id: string; nome: string; itens: Transacao[] }>>((acc, c) => {
                 const ci = itens.filter(t => t.cartao_id === c.id)
-                if (ci.length > 0) acc[c.id] = { nome: c.nome_cartao, itens: ci }
+                if (ci.length > 0) acc[c.id] = { id: c.id, nome: c.nome_cartao, itens: ci }
                 return acc
               }, {})
               const grupos = Object.values(porCartao)
@@ -473,8 +488,8 @@ function Dashboard() {
               return (
                 <div style={{ marginBottom: 16, padding: '14px 18px', borderRadius: 14, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Detalhes da Fatura</div>
-                  {grupos.map(g => (
-                    <div key={g.nome} style={{ marginBottom: grupos.length > 1 ? 12 : 0 }}>
+                  {grupos.map((g, gi) => (
+                    <div key={g.id} style={{ marginBottom: gi < grupos.length - 1 ? 16 : 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}>💳 {g.nome}</span>
                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b' }}>{fmt(g.itens.reduce((a, t) => a + t.valor, 0))}</span>
@@ -486,6 +501,13 @@ function Dashboard() {
                           <span style={{ color: '#ef4444', fontWeight: 600, flexShrink: 0 }}>{fmt(t.valor)}</span>
                         </div>
                       ))}
+                      <button
+                        onClick={() => pagarFatura(g.id, g.itens)}
+                        disabled={pagandoFatura === g.id}
+                        style={{ marginTop: 10, width: '100%', padding: '8px 0', borderRadius: 8, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.08)', color: '#10b981', fontSize: '0.75rem', fontWeight: 700, cursor: pagandoFatura === g.id ? 'not-allowed' : 'pointer', opacity: pagandoFatura === g.id ? 0.6 : 1, fontFamily: 'inherit' }}
+                      >
+                        {pagandoFatura === g.id ? 'Registrando...' : `✓ Paguei a fatura do ${g.nome}`}
+                      </button>
                     </div>
                   ))}
                 </div>
