@@ -53,6 +53,7 @@ function Dashboard() {
   const [cartoes, setCartoes] = useState<Cartao[]>([])
   const [loading, setLoading] = useState(false)
   const [pagandoFatura, setPagandoFatura] = useState<string | null>(null) // cartao_id sendo pago
+  const [paidTxIds, setPaidTxIds] = useState<Set<string>>(new Set())
   const [month, setMonth] = useState(new Date().getMonth())
   const [year, setYear] = useState(new Date().getFullYear())
   const [tab, setTab] = useState<'transactions' | 'cards' | 'budget' | 'annual' | 'overview'>('transactions')
@@ -80,6 +81,8 @@ function Dashboard() {
 
   // Load budgets
   useEffect(() => { try { const b = localStorage.getItem('fin_budgets'); if (b) setBudgets(JSON.parse(b)) } catch { } }, [])
+  // Load paid fatura tx IDs
+  useEffect(() => { try { const p = localStorage.getItem('fin_paid_tx_ids'); if (p) setPaidTxIds(new Set(JSON.parse(p))) } catch { } }, [])
   const saveBudget = (cat: string, val: string) => {
     const n = parseFloat(val); if (isNaN(n) || n <= 0) return
     const next = { ...budgets, [cat]: n }; setBudgets(next); localStorage.setItem('fin_budgets', JSON.stringify(next))
@@ -253,7 +256,8 @@ function Dashboard() {
     setPagandoFatura(cartaoId)
     const client = getSupabase()
     if (client) {
-      const hoje = new Date().toISOString().split('T')[0]
+      const diaVenc = cartao?.dia_vencimento || 1
+      const hoje = `${year}-${String(month + 1).padStart(2, '0')}-${String(diaVenc).padStart(2, '0')}`
       // 1. Registrar pagamento como PIX/débito (sai do banco)
       await client.from('transacoes').insert({
         phone, tipo: 'gasto', valor: total,
@@ -269,6 +273,10 @@ function Dashboard() {
           .eq('compra_parcelada_id', p.compra_parcelada_id!)
           .eq('vencimento', p.data)
       }
+      // 3. Marcar IDs dos itens como pagos (persiste no localStorage)
+      const newPaidIds = new Set([...paidTxIds, ...itens.map(i => i.id)])
+      setPaidTxIds(newPaidIds)
+      try { localStorage.setItem('fin_paid_tx_ids', JSON.stringify([...newPaidIds])) } catch {}
       await fetchData()
     }
     setPagandoFatura(null)
@@ -277,8 +285,8 @@ function Dashboard() {
   // ─── Derived ──────────────────────────────────────────────────────────────
   // Separação por método de pagamento (todos por ciclo de fatura)
   const gastosDebit    = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)
-  const gastosCredit   = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id)
-  const parcelasCartao = txAll.filter(t => t.tipo === 'parcela' && !!t.cartao_id)
+  const gastosCredit   = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id && !paidTxIds.has(t.id))
+  const parcelasCartao = txAll.filter(t => t.tipo === 'parcela' && !!t.cartao_id && !paidTxIds.has(t.id))
   const parcelasDebito = txAll.filter(t => t.tipo === 'parcela' && !t.cartao_id)
   const receitas       = txAll.filter(t => t.tipo === 'receita')
 
