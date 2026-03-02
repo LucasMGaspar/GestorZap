@@ -354,6 +354,9 @@ function Dashboard() {
     const m: Record<number, { gastos: number; receitas: number }> = {}
     for (let i = 0; i < 12; i++) m[i] = { gastos: 0, receitas: 0 }
     txYear.forEach(t => {
+      // Ignorar transações de crédito/parcela já pagas (cobertas pelo pagamento da fatura)
+      if (paidTxIds.has(t.id)) return
+
       let mo = new Date(t.data + 'T12:00:00').getMonth()
 
       // Aplicar regra de fechamento do cartão de crédito
@@ -371,7 +374,7 @@ function Dashboard() {
       else if (t.tipo === 'receita') m[mo].receitas += t.valor
     })
     return MONTHS_S.map((name, i) => ({ name, gastos: m[i].gastos, receitas: m[i].receitas, saldo: m[i].receitas - m[i].gastos }))
-  }, [txYear, cartoes])
+  }, [txYear, cartoes, paidTxIds])
 
   // Parcelas ativas — agora vem direto da tabela compras_parceladas
   const parcelasAtivas = useMemo(() => {
