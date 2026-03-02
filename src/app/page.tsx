@@ -53,7 +53,6 @@ function Dashboard() {
   const [cartoes, setCartoes] = useState<Cartao[]>([])
   const [loading, setLoading] = useState(false)
   const [pagandoFatura, setPagandoFatura] = useState<string | null>(null) // cartao_id sendo pago
-  const [paidTxIds, setPaidTxIds] = useState<Set<string>>(new Set())
   const [month, setMonth] = useState(new Date().getMonth())
   const [year, setYear] = useState(new Date().getFullYear())
   const [tab, setTab] = useState<'transactions' | 'cards' | 'budget' | 'annual' | 'overview'>('transactions')
@@ -81,8 +80,6 @@ function Dashboard() {
 
   // Load budgets
   useEffect(() => { try { const b = localStorage.getItem('fin_budgets'); if (b) setBudgets(JSON.parse(b)) } catch { } }, [])
-  // Load paid fatura tx IDs
-  useEffect(() => { try { const p = localStorage.getItem('fin_paid_tx_ids'); if (p) setPaidTxIds(new Set(JSON.parse(p))) } catch { } }, [])
   const saveBudget = (cat: string, val: string) => {
     const n = parseFloat(val); if (isNaN(n) || n <= 0) return
     const next = { ...budgets, [cat]: n }; setBudgets(next); localStorage.setItem('fin_budgets', JSON.stringify(next))
@@ -273,20 +270,26 @@ function Dashboard() {
           .eq('compra_parcelada_id', p.compra_parcelada_id!)
           .eq('vencimento', p.data)
       }
-      // 3. Marcar IDs dos itens como pagos (persiste no localStorage)
-      const newPaidIds = new Set([...paidTxIds, ...itens.map(i => i.id)])
-      setPaidTxIds(newPaidIds)
-      try { localStorage.setItem('fin_paid_tx_ids', JSON.stringify([...newPaidIds])) } catch {}
       await fetchData()
     }
     setPagandoFatura(null)
   }
 
   // ─── Derived ──────────────────────────────────────────────────────────────
+  // Detectar cartões com fatura já paga no ciclo atual — baseado no DB, funciona em qualquer dispositivo
+  const paidCartaoIds = new Set<string>()
+  txAll.forEach(t => {
+    if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'Transferência' && t.descricao?.startsWith('Pagamento fatura ')) {
+      const nome = t.descricao.replace('Pagamento fatura ', '')
+      const cartao = cartoes.find(c => c.nome_cartao === nome)
+      if (cartao) paidCartaoIds.add(cartao.id)
+    }
+  })
+
   // Separação por método de pagamento (todos por ciclo de fatura)
   const gastosDebit    = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)
-  const gastosCredit   = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id && !paidTxIds.has(t.id))
-  const parcelasCartao = txAll.filter(t => t.tipo === 'parcela' && !!t.cartao_id && !paidTxIds.has(t.id))
+  const gastosCredit   = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id && !paidCartaoIds.has(t.cartao_id!))
+  const parcelasCartao = txAll.filter(t => t.tipo === 'parcela' && !!t.cartao_id && !paidCartaoIds.has(t.cartao_id!))
   const parcelasDebito = txAll.filter(t => t.tipo === 'parcela' && !t.cartao_id)
   const receitas       = txAll.filter(t => t.tipo === 'receita')
 
@@ -351,12 +354,22 @@ function Dashboard() {
 
   // Annual data — inclui parcelas como gasto
   const annualData = useMemo(() => {
+    // Detectar (cartao_id, mês) com fatura paga no ano — baseado no DB
+    const paidAnnualBills = new Set<string>()
+    txYear.forEach(t => {
+      if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'Transferência' && t.descricao?.startsWith('Pagamento fatura ')) {
+        const nome = t.descricao.replace('Pagamento fatura ', '')
+        const cartao = cartoes.find(c => c.nome_cartao === nome)
+        if (cartao) {
+          const mo = new Date(t.data + 'T12:00:00').getMonth()
+          paidAnnualBills.add(`${cartao.id}-${mo}`)
+        }
+      }
+    })
+
     const m: Record<number, { gastos: number; receitas: number }> = {}
     for (let i = 0; i < 12; i++) m[i] = { gastos: 0, receitas: 0 }
     txYear.forEach(t => {
-      // Ignorar transações de crédito/parcela já pagas (cobertas pelo pagamento da fatura)
-      if (paidTxIds.has(t.id)) return
-
       let mo = new Date(t.data + 'T12:00:00').getMonth()
 
       // Aplicar regra de fechamento do cartão de crédito
@@ -364,17 +377,21 @@ function Dashboard() {
         const card = cartoes.find(c => c.id === t.cartao_id)
         if (card) {
           const buyDay = new Date(t.data + 'T12:00:00').getDate()
-          if (buyDay >= card.dia_fechamento) {
-            mo = mo === 11 ? 0 : mo + 1
-          }
+          if (buyDay >= card.dia_fechamento) mo = mo === 11 ? 0 : mo + 1
         }
+        // Fatura deste cartão neste mês já foi paga — não duplicar com o crédito
+        if (paidAnnualBills.has(`${t.cartao_id}-${mo}`)) return
+      }
+
+      if (t.tipo === 'parcela' && t.cartao_id) {
+        if (paidAnnualBills.has(`${t.cartao_id}-${mo}`)) return
       }
 
       if (t.tipo === 'gasto' || t.tipo === 'parcela') m[mo].gastos += t.valor
       else if (t.tipo === 'receita') m[mo].receitas += t.valor
     })
     return MONTHS_S.map((name, i) => ({ name, gastos: m[i].gastos, receitas: m[i].receitas, saldo: m[i].receitas - m[i].gastos }))
-  }, [txYear, cartoes, paidTxIds])
+  }, [txYear, cartoes])
 
   // Parcelas ativas — agora vem direto da tabela compras_parceladas
   const parcelasAtivas = useMemo(() => {
