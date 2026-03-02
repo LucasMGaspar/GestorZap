@@ -46,7 +46,8 @@ function Dashboard() {
   const [token] = useState(sp.get('token') || '')
   const [authError, setAuthError] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
-  const [txAll, setTxAll] = useState<Transacao[]>([])
+  const [txAll, setTxAll] = useState<Transacao[]>([])       // lista: por data de compra
+  const [txCycle, setTxCycle] = useState<Transacao[]>([])   // cards: por ciclo de fatura
   const [txPrev, setTxPrev] = useState<Transacao[]>([])
   const [txYear, setTxYear] = useState<Transacao[]>([])
   const [comprasParceladas, setComprasParceladas] = useState<CompraParcelada[]>([])
@@ -161,15 +162,23 @@ function Dashboard() {
         return { m: targetMo, y: targetYr }
       }
 
-      // Filter txAll for the EXACT currently selected month/year based on REAL cycle
-      const processTx = (txs: Transacao[]) => {
+      // Lista de transações: por data de compra (o usuário vê as decisões no mês em que aconteceram)
+      const processTxByDate = (txs: Transacao[]) => {
+        return txs.filter(t => {
+          const d = new Date(t.data + 'T12:00:00')
+          return d.getMonth() === month && d.getFullYear() === year
+        })
+      }
+
+      // Cards financeiros: por ciclo de fatura (Crédito a Pagar mostra o que vence neste mês)
+      const processTxByCycle = (txs: Transacao[]) => {
         return txs.filter(t => {
           const target = getRealMonthYear(t, fetchedCards)
           return target.m === month && target.y === year
         })
       }
 
-      // Filter txPrev for the PREVIOUS month based on REAL cycle
+      // Mês anterior: por ciclo de fatura (para comparação %)
       const processPrevTx = (txs: Transacao[]) => {
         return txs.filter(t => {
           const target = getRealMonthYear(t, fetchedCards)
@@ -177,7 +186,10 @@ function Dashboard() {
         })
       }
 
-      if (r1.data) setTxAll(processTx(r1.data))
+      if (r1.data) {
+        setTxAll(processTxByDate(r1.data))
+        setTxCycle(processTxByCycle(r1.data))
+      }
       if (r2.data) setTxPrev(processPrevTx(r2.data))
       if (r3.data) setTxYear(r3.data) // We leave annual raw to handle natively inside its own useMemo later
       setComprasParceladas(r4.data ?? [])
@@ -246,21 +258,22 @@ function Dashboard() {
   }
 
   // ─── Derived ──────────────────────────────────────────────────────────────
-  // Separação por método de pagamento
-  const gastosDebit    = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)  // PIX / débito
-  const gastosCredit   = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id) // crédito avulso (fatura)
-  const parcelas       = txAll.filter(t => t.tipo === 'parcela')
-  const parcelasCartao = parcelas.filter(t => !!t.cartao_id)  // parcelas no cartão (fatura)
-  const parcelasDebito = parcelas.filter(t => !t.cartao_id)   // parcelas sem cartão (saem do banco)
+  // Lista de transações: por data de compra (txAll)
+  const gastosDebit    = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)
+  const parcelasDebito = txAll.filter(t => t.tipo === 'parcela' && !t.cartao_id)
   const receitas       = txAll.filter(t => t.tipo === 'receita')
+
+  // Cards financeiros: por ciclo de fatura (txCycle) — Crédito a Pagar preciso
+  const cycleCredit    = txCycle.filter(t => t.tipo === 'gasto' && !!t.cartao_id)
+  const cycleParcelas  = txCycle.filter(t => t.tipo === 'parcela' && !!t.cartao_id)
 
   const totalDebit      = gastosDebit.reduce((a, t) => a + t.valor, 0)
   const totalParcDebito = parcelasDebito.reduce((a, t) => a + t.valor, 0)
   // Modelo caixa: Total Gastos = só o que sai do banco (débito/PIX + financiamentos sem cartão)
   const totalG = totalDebit + totalParcDebito
   const totalR = receitas.reduce((a, t) => a + t.valor, 0)
-  // Fatura = crédito avulso + parcelas no cartão (pagas quando vencer a fatura)
-  const totalCredit = gastosCredit.reduce((a, t) => a + t.valor, 0) + parcelasCartao.reduce((a, t) => a + t.valor, 0)
+  // Fatura = itens do ciclo de fatura deste mês (inclui compras de meses anteriores que fecham agora)
+  const totalCredit = cycleCredit.reduce((a, t) => a + t.valor, 0) + cycleParcelas.reduce((a, t) => a + t.valor, 0)
 
   // Saldo real = receitas menos o que efetivamente saiu do banco (exclui crédito)
   const saldoReal = totalR - totalDebit - totalParcDebito
@@ -444,8 +457,40 @@ function Dashboard() {
               <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastosDebit.length + parcelasDebito.length} transações no débito/PIX`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
               <MCard label="Total Receitas" value={fmt(totalR)} sub={`${receitas.length} transações`} icon={<ArrowUpCircle size={18} />} color="#10b981" grad="rgba(16,185,129,0.1)" pct={pctR} />
               <MCard label="Saldo Real" value={fmt(saldoReal)} sub="Débito/PIX (crédito não incluído)" icon={saldoReal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldoReal >= 0 ? '#10b981' : '#ef4444'} grad={saldoReal >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
-              <MCard label="Crédito a Pagar" value={fmt(totalCredit)} sub={(gastosCredit.length + parcelasCartao.length) > 0 ? `${gastosCredit.length + parcelasCartao.length} lançamento${(gastosCredit.length + parcelasCartao.length) > 1 ? 's' : ''} na fatura` : 'Nenhum lançamento na fatura'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
+              <MCard label="Crédito a Pagar" value={fmt(totalCredit)} sub={(cycleCredit.length + cycleParcelas.length) > 0 ? `${cycleCredit.length + cycleParcelas.length} lançamento${(cycleCredit.length + cycleParcelas.length) > 1 ? 's' : ''} na fatura` : 'Nenhum lançamento na fatura'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
             </div>
+
+            {/* Detalhe Crédito a Pagar */}
+            {totalCredit > 0 && (() => {
+              const itens = [...cycleCredit, ...cycleParcelas]
+              const porCartao = cartoes.reduce<Record<string, { nome: string; itens: Transacao[] }>>((acc, c) => {
+                const ci = itens.filter(t => t.cartao_id === c.id)
+                if (ci.length > 0) acc[c.id] = { nome: c.nome_cartao, itens: ci }
+                return acc
+              }, {})
+              const grupos = Object.values(porCartao)
+              if (grupos.length === 0) return null
+              return (
+                <div style={{ marginBottom: 16, padding: '14px 18px', borderRadius: 14, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Detalhes da Fatura</div>
+                  {grupos.map(g => (
+                    <div key={g.nome} style={{ marginBottom: grupos.length > 1 ? 12 : 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}>💳 {g.nome}</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b' }}>{fmt(g.itens.reduce((a, t) => a + t.valor, 0))}</span>
+                      </div>
+                      {g.itens.map(t => (
+                        <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderRadius: 6, fontSize: '0.75rem', color: 'var(--text2)' }}>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.descricao}</span>
+                          <span style={{ color: 'var(--text3)', margin: '0 10px', flexShrink: 0 }}>{t.data.split('-').reverse().join('/')}</span>
+                          <span style={{ color: '#ef4444', fontWeight: 600, flexShrink: 0 }}>{fmt(t.valor)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
 
             {/* Insights row */}
             {txAll.length > 0 && (

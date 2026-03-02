@@ -125,6 +125,7 @@ select.input-field {
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 36px;
+  color-scheme: dark;
 }
 
 /* Button */
