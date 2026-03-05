@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { Search, Filter, Download, X, Edit3, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { Transacao, Cartao } from '@/lib/supabase'
 import { MONTHS_PT, fmt, cc, ci, h2r } from '@/lib/utils'
@@ -47,7 +47,7 @@ export function TabTransactions({
         <div className="glass" style={{ padding: 24 }}>
             {/* Filter bar */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>�x�� Transações � {MONTHS_PT[month]}</h3>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>Transações {MONTHS_PT[month]}</h3>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
                         <Search size={13} color="#94a3b8" />

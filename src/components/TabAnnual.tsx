@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
@@ -18,7 +18,7 @@ export function TabAnnual({ annualData, year, month }: Props) {
     return (
         <div>
             <div className="glass" style={{ padding: 24, marginBottom: 14 }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>=� Vis�o Anual  {year}</h3>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>Visão Anual  {year}</h3>
                 <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={annualData} margin={{ bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -33,13 +33,13 @@ export function TabAnnual({ annualData, year, month }: Props) {
             </div>
 
             <div className="glass" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 14 }}>=� Tabela Mensal</h3>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 14 }}>= Tabela Mensal</h3>
                 <div className="table-wrap" style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                                {['M�s', 'Gastos', 'Receitas', 'Saldo'].map(h => (
-                                    <th key={h} style={{ padding: '8px 12px', textAlign: h === 'M�s' ? 'left' : 'right', color: 'var(--text3)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                                {['Ms', 'Gastos', 'Receitas', 'Saldo'].map(h => (
+                                    <th key={h} style={{ padding: '8px 12px', textAlign: h === 'Ms' ? 'left' : 'right', color: 'var(--text3)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>

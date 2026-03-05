@@ -7,6 +7,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Gestor Financeiro",
   description: "Dashboard financeiro pessoal via WhatsApp",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({

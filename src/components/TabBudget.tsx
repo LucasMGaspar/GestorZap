@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { Target, AlertTriangle, CreditCard } from 'lucide-react'
 import { Cartao, CompraParcelada } from '@/lib/supabase'
 import { fmt, cc, ci, h2r, CAT } from '@/lib/utils'
@@ -26,7 +26,7 @@ export function TabBudget({ catMap, totalG, parcelasAtivas, cartoes, budgets, ed
             {parcelasAtivas.length > 0 && (
                 <div className="glass" style={{ padding: 24, marginBottom: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                        <span style={{ fontSize: '1rem' }}>�x�</span>
+                        <span style={{ fontSize: '1rem' }}></span>
                         <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>Parcelas Ativas</h3>
                         <span style={{ fontSize: '0.72rem', color: 'var(--text3)', marginLeft: 'auto' }}>
                             {parcelasAtivas.length} compra{parcelasAtivas.length > 1 ? 's' : ''} parcelada{parcelasAtivas.length > 1 ? 's' : ''}
@@ -56,7 +56,7 @@ export function TabBudget({ catMap, totalG, parcelasAtivas, cartoes, budgets, ed
                                             </div>
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: done ? '#10b981' : '#f59e0b' }}>{done ? '�S& Quitado!' : `${restantes} restante${restantes > 1 ? 's' : ''}`}</div>
+                                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: done ? '#10b981' : '#f59e0b' }}>{done ? '✅ Quitado!' : `${restantes} restante${restantes > 1 ? 's' : ''}`}</div>
                                             {!done && <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>Ainda: {fmt(totalDevido)}</div>}
                                         </div>
                                     </div>

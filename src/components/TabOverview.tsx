@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { Zap } from 'lucide-react'
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -35,7 +35,7 @@ export function TabOverview({ txAll, areaData, pieData, dowData, totalG, saldo, 
             {/* Area + Pie */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))', gap: 14, marginBottom: 14 }}>
                 <div className="glass" style={{ padding: 24 }}>
-                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>�x� Evolução Diária</h3>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>📈 Evolução Diária</h3>
                     <ResponsiveContainer width="100%" height={220}>
                         <AreaChart data={areaData}>
                             <defs>
@@ -54,7 +54,7 @@ export function TabOverview({ txAll, areaData, pieData, dowData, totalG, saldo, 
                 </div>
 
                 <div className="glass" style={{ padding: 24 }}>
-                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>�x� Gastos por Categoria</h3>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>📈 Gastos por Categoria</h3>
                     {pieData.length > 0 ? (
                         <>
                             <ResponsiveContainer width="100%" height={170}>
@@ -89,7 +89,7 @@ export function TabOverview({ txAll, areaData, pieData, dowData, totalG, saldo, 
             {/* Cumulative + Heatmap */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))', gap: 14, marginBottom: 14 }}>
                 <div className="glass" style={{ padding: 24 }}>
-                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>�x� Saldo Acumulado</h3>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>📈 Saldo Acumulado</h3>
                     <ResponsiveContainer width="100%" height={200}>
                         <LineChart data={areaData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -102,7 +102,7 @@ export function TabOverview({ txAll, areaData, pieData, dowData, totalG, saldo, 
                 </div>
 
                 <div className="glass" style={{ padding: 24 }}>
-                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>�x️ Gastos por Dia da Semana</h3>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>📈️ Gastos por Dia da Semana</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
                         {dowData.map((d, i) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -121,7 +121,7 @@ export function TabOverview({ txAll, areaData, pieData, dowData, totalG, saldo, 
             {/* Bar ranking */}
             {pieData.length > 0 && (
                 <div className="glass" style={{ padding: 24 }}>
-                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>�x�& Ranking por Categoria</h3>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>🏆 Ranking por Categoria</h3>
                     <ResponsiveContainer width="100%" height={Math.max(140, pieData.length * 40)}>
                         <BarChart data={pieData} layout="vertical" margin={{ left: 0, right: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />

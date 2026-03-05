@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, Suspense, useMemo } from 'react'
@@ -19,7 +19,7 @@ import { TabBudget } from '@/components/TabBudget'
 import { TabCards } from '@/components/TabCards'
 import { MONTHS_PT, MONTHS_S, WEEK_DAYS, CAT, cc, fmt, h2r } from '@/lib/utils'
 
-// ������ Main ����������������������������������������������������������������������������������������������������������������������������������������
+//  Main 
 function Dashboard() {
   const sp = useSearchParams()
   const [token] = useState(sp.get('token') || '')
@@ -72,7 +72,7 @@ function Dashboard() {
     try { const b = localStorage.getItem('fin_budgets'); if (b) setBudgets(JSON.parse(b)) } catch { }
   }, [])
 
-  // ������ Save budget (localStorage + Supabase) ����������������������������������������������������������������
+  //  Save budget (localStorage + Supabase) 
   const saveBudget = useCallback(async (cat: string, val: string) => {
     const n = parseFloat(val); if (isNaN(n) || n <= 0) return
     const next = { ...budgets, [cat]: n }
@@ -86,7 +86,7 @@ function Dashboard() {
     }
   }, [budgets, phone])
 
-  // ������ Fetch data ����������������������������������������������������������������������������������������������������������������������
+  //  Fetch data 
   const fetchData = useCallback(async () => {
     if (!token) return
     setLoading(true)
@@ -173,7 +173,7 @@ function Dashboard() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // ������ Card CRUD ������������������������������������������������������������������������������������������������������������������������
+  //  Card CRUD 
   const addCard = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newCard.nome_cartao.trim() || !phone) return
@@ -197,7 +197,7 @@ function Dashboard() {
     }
   }
 
-  // ������ Edit transaction ����������������������������������������������������������������������������������������������������������
+  //  Edit transaction 
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingTx) return
@@ -229,7 +229,7 @@ function Dashboard() {
     setSavingTx(false)
   }
 
-  // ������ Pay bill ��������������������������������������������������������������������������������������������������������������������������
+  //  Pay bill 
   const pagarFatura = async (cartaoId: string, itens: Transacao[]) => {
     const cartao = cartoes.find(c => c.id === cartaoId)
     const total = itens.reduce((a, t) => a + t.valor, 0)
@@ -249,7 +249,7 @@ function Dashboard() {
     setPagandoFatura(null)
   }
 
-  // ������ CSV Export ����������������������������������������������������������������������������������������������������������������������
+  //  CSV Export 
   const exportCSV = () => {
     const rows = [['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'], ...filteredTx.map(t => [t.data, t.tipo, t.categoria, t.descricao, t.valor.toFixed(2).replace('.', ',')])]
     const csv = rows.map(r => r.map(c => `"${c}"`).join(';')).join('\n')
@@ -258,7 +258,7 @@ function Dashboard() {
     const a = document.createElement('a'); a.href = url; a.download = `transacoes-${MONTHS_PT[month]}-${year}.csv`; a.click()
   }
 
-  // ������ Derived data ������������������������������������������������������������������������������������������������������������������
+  //  Derived data 
   const paidCartaoIds = new Set<string>()
   txAll.forEach(t => {
     if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'Transferência' && t.descricao?.startsWith('Pagamento fatura ')) {
@@ -375,7 +375,7 @@ function Dashboard() {
   const cats = Object.keys(CAT)
   const years = [year - 1, year, year + 1]
 
-  // ������ Render ������������������������������������������������������������������������������������������������������������������������������
+  //  Render 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: 0 }}>
       {/* Background blobs */}
@@ -397,7 +397,7 @@ function Dashboard() {
             </div>
           </div>
           <div className="dash-header-controls" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {phone && <span style={{ fontSize: '0.75rem', color: 'var(--text2)', padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>�x� +{phone}</span>}
+            {phone && <span style={{ fontSize: '0.75rem', color: 'var(--text2)', padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}> +{phone}</span>}
             <select className="input-field" value={month} onChange={e => setMonth(Number(e.target.value))}>
               {MONTHS_S.map((m, i) => <option key={i} value={i}>{m}</option>)}
             </select>
@@ -424,11 +424,11 @@ function Dashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <AlertTriangle size={16} color={isExpired ? '#ef4444' : '#f59e0b'} />
                 <span style={{ fontSize: '0.82rem', color: isExpired ? '#f87171' : '#fbbf24', fontWeight: 600 }}>
-                  {isExpired ? '�a�️ Sua assinatura está inativa. Renove para continuar usando o GestorZap.' : `⏳ Sua assinatura expira em ${daysLeft} dia${daysLeft !== 1 ? 's' : ''}. Renove para não perder o acesso.`}
+                  {isExpired ? 'Sua assinatura está inativa. Renove para continuar usando o GestorZap.' : `⏳ Sua assinatura expira em ${daysLeft} dia${daysLeft !== 1 ? 's' : ''}. Renove para não perder o acesso.`}
                 </span>
               </div>
               <a href={salesUrl} target="_blank" rel="noreferrer" style={{ padding: '7px 16px', borderRadius: 8, background: isExpired ? '#ef4444' : '#f59e0b', color: 'white', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                Renovar agora � R$29,90/mês
+                Renovar agora  R$29,90/mês
               </a>
             </div>
           )
@@ -437,13 +437,13 @@ function Dashboard() {
         {/* Auth states */}
         {authError === 'token_required' || (!token && !loading) ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}>�x</span></div>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}></span></div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Acesso Restrito</h2>
             <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>Este dashboard só pode ser acessado pelo link enviado no seu WhatsApp.</p>
           </div>
         ) : authError === 'token_invalido' ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}>�R</span></div>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}></span></div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Token Inválido</h2>
             <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>O link de acesso não é válido ou expirou. Peça um novo link pelo WhatsApp.</p>
           </div>
@@ -484,7 +484,7 @@ function Dashboard() {
                   {grupos.map((g, gi) => (
                     <div key={g.id} style={{ marginBottom: gi < grupos.length - 1 ? 16 : 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}>�x� {g.nome}</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}> {g.nome}</span>
                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b' }}>{fmt(g.itens.reduce((a, t) => a + t.valor, 0))}</span>
                       </div>
                       {g.itens.map(t => (
@@ -495,7 +495,7 @@ function Dashboard() {
                         </div>
                       ))}
                       <button onClick={() => pagarFatura(g.id, g.itens)} disabled={pagandoFatura === g.id} style={{ marginTop: 10, width: '100%', padding: '8px 0', borderRadius: 8, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.08)', color: '#10b981', fontSize: '0.75rem', fontWeight: 700, cursor: pagandoFatura === g.id ? 'not-allowed' : 'pointer', opacity: pagandoFatura === g.id ? 0.6 : 1, fontFamily: 'inherit' }}>
-                        {pagandoFatura === g.id ? 'Registrando...' : `�S Paguei a fatura do ${g.nome}`}
+                        {pagandoFatura === g.id ? 'Registrando...' : `Paguei a fatura do ${g.nome}`}
                       </button>
                     </div>
                   ))}
@@ -506,9 +506,9 @@ function Dashboard() {
             {/* Insights */}
             {txAll.length > 0 && (
               <div className="insight-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 10, marginBottom: 20 }}>
-                {isCurrentMonthYear && <ICard emoji="�x�" title="Previsão do mês" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />}
-                <ICard emoji="�x�" title="Média diária" value={fmt(avgDailySpend)} sub="de gastos por dia" color="#ef4444" />
-                <ICard emoji="�x�" title="Saldo comprometido" value={fmt(saldo)} sub={saldo >= 0 ? 'Incluindo crédito pendente' : 'Atenção ao crédito!'} color={saldo >= 0 ? '#10b981' : '#ef4444'} />
+                {isCurrentMonthYear && <ICard emoji="" title="Previsão do mês" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />}
+                <ICard emoji="" title="Média diária" value={fmt(avgDailySpend)} sub="de gastos por dia" color="#ef4444" />
+                <ICard emoji="" title="Saldo comprometido" value={fmt(saldo)} sub={saldo >= 0 ? 'Incluindo crédito pendente' : 'Atenção ao crédito!'} color={saldo >= 0 ? '#10b981' : '#ef4444'} />
               </div>
             )}
 
@@ -516,7 +516,7 @@ function Dashboard() {
             <div className="tab-bar" style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'rgba(255,255,255,0.04)', padding: 4, borderRadius: 12, width: 'fit-content', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
               {(['transactions', 'cards', 'budget', 'annual', 'overview'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{ padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s', background: tab === t ? 'linear-gradient(135deg,#00bfa5,#00e676)' : 'transparent', color: tab === t ? 'white' : '#94a3b8' }}>
-                  {t === 'transactions' ? '�x�� Transações' : t === 'cards' ? '�x� Cartões' : t === 'budget' ? '�x}� Orçamento' : t === 'annual' ? '�x& Anual' : '�x` Visão Geral'}
+                  {t === 'transactions' ? 'Transações' : t === 'cards' ? 'Cartões' : t === 'budget' ? 'Orçamento' : t === 'annual' ? 'Anual' : 'Visão Geral'}
                 </button>
               ))}
             </div>
@@ -552,11 +552,11 @@ function Dashboard() {
             <form onSubmit={saveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {editingTx.tipo === 'parcela' && (
                 <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(0,230,118,0.08)', border: '1px solid rgba(0,230,118,0.15)', fontSize: '0.75rem', color: '#69f0ae' }}>
-                  �a�️ Você está editando uma parcela. A fatura correspondente será atualizada automaticamente.
+                  a️ Você está editando uma parcela. A fatura correspondente será atualizada automaticamente.
                 </div>
               )}
               <div>
-                <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DESCRI�!ÒO</label>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DESCRI!ÒO</label>
                 <input className="input-field" type="text" value={editingTx.descricao || ''} onChange={e => setEditingTx({ ...editingTx, descricao: e.target.value })} required style={{ width: '100%' }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -589,7 +589,7 @@ function Dashboard() {
   )
 }
 
-// ������ Export ��������������������������������������������������������������������������������������������������������������������������������������
+//  Export 
 export default function Page() {
   return (
     <Suspense fallback={
