@@ -27,9 +27,9 @@ export function TabCards({ cartoes, newCard, savingCard, pagandoFatura, setNewCa
         const nome = newCard.nome_cartao.trim()
         if (!nome) return
 
-        // Validação: nome duplicado
+        // Valida��o: nome duplicado
         if (cartoes.some(c => c.nome_cartao.toLowerCase() === nome.toLowerCase())) {
-            setCardError(`Já existe um cartão chamado "${nome}". Escolha outro nome.`)
+            setCardError(`J� existe um cart�o chamado "${nome}". Escolha outro nome.`)
             return
         }
 
@@ -49,8 +49,8 @@ export function TabCards({ cartoes, newCard, savingCard, pagandoFatura, setNewCa
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20, alignItems: 'start' }}>
             <div className="glass" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Meus Cartões</h3>
-                {cartoes.length === 0 ? <Empty msg="Nenhum cartão cadastrado" /> : (
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Meus Cart�es</h3>
+                {cartoes.length === 0 ? <Empty msg="Nenhum cart�o cadastrado" /> : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {cartoes.map((c) => {
                             const hue = hues[c.nome_cartao.length % hues.length]
@@ -77,7 +77,7 @@ export function TabCards({ cartoes, newCard, savingCard, pagandoFatura, setNewCa
                                                 <div style={{ position: 'absolute', left: '70%', top: 0, bottom: 0, width: 1, background: 'rgba(0,0,0,0.2)' }} />
                                             </div>
                                         </div>
-                                        <button onClick={() => deleteCard(c.id)} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', padding: 6, cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')} title="Excluir Cartão">
+                                        <button onClick={() => deleteCard(c.id)} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', padding: 6, cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')} title="Excluir Cart�o">
                                             <X size={14} />
                                         </button>
                                     </div>
@@ -99,7 +99,7 @@ export function TabCards({ cartoes, newCard, savingCard, pagandoFatura, setNewCa
                                     {/* Fatura badge */}
                                     {totalFatura > 0 && (
                                         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 14px', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(6px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                                            <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{jaPagou ? '✅ Fatura paga' : `Fatura: ${fmt(totalFatura)}`}</span>
+                                            <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{jaPagou ? ' Fatura paga' : `Fatura: ${fmt(totalFatura)}`}</span>
                                             {!jaPagou && grupo && (
                                                 <button onClick={() => pagarFatura(c.id, grupo.itens)} disabled={pagandoFatura === c.id} style={{ fontSize: '0.68rem', fontWeight: 700, background: 'rgba(16,185,129,0.25)', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit', opacity: pagandoFatura === c.id ? 0.6 : 1 }}>
                                                     {pagandoFatura === c.id ? '...' : 'Paguei'}
@@ -117,23 +117,23 @@ export function TabCards({ cartoes, newCard, savingCard, pagandoFatura, setNewCa
             <div className="glass" style={{ padding: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                     <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CreditCard size={16} color="#10b981" /></div>
-                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>Novo Cartão</h3>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>Novo Cart�o</h3>
                 </div>
 
                 <p style={{ fontSize: '0.78rem', color: 'var(--text2)', marginBottom: 20, lineHeight: 1.5 }}>
-                    Cadastre a data de fechamento e vencimento das suas faturas para receber avisos automáticos no seu WhatsApp para não esquecer de pagar!
+                    Cadastre a data de fechamento e vencimento das suas faturas para receber avisos autom�ticos no seu WhatsApp para n�o esquecer de pagar!
                 </p>
 
                 {cardError && (
                     <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', fontSize: '0.8rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span>⚠️</span> {cardError}
+                        <span>�</span> {cardError}
                     </div>
                 )}
 
                 <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <div>
-                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>NOME DO CARTÃO (Ex: Nubank)</label>
-                        <input className="input-field" type="text" value={newCard.nome_cartao} onChange={e => { setNewCard(v => ({ ...v, nome_cartao: e.target.value })); setCardError('') }} placeholder="Nome do cartão" required style={{ width: '100%' }} />
+                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>NOME DO CART�O (Ex: Nubank)</label>
+                        <input className="input-field" type="text" value={newCard.nome_cartao} onChange={e => { setNewCard(v => ({ ...v, nome_cartao: e.target.value })); setCardError('') }} placeholder="Nome do cart�o" required style={{ width: '100%' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div>
@@ -146,11 +146,11 @@ export function TabCards({ cartoes, newCard, savingCard, pagandoFatura, setNewCa
                         </div>
                     </div>
                     <p style={{ fontSize: '0.72rem', color: 'var(--text3)', marginTop: -8 }}>
-                        💡 Use no máximo dia 28 para evitar problemas em meses curtos (fevereiro).
+                        =� Use no m�ximo dia 28 para evitar problemas em meses curtos (fevereiro).
                     </p>
                     <button type="submit" disabled={savingCard || !newCard.nome_cartao.trim()} className="btn-primary" style={{ marginTop: 8, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                         {savingCard ? <RefreshCw size={16} className="animate-spin" /> : <>+</>}
-                        Adicionar Cartão
+                        Adicionar Cart�o
                     </button>
                 </form>
             </div>

@@ -1,20 +1,20 @@
-﻿import React from 'react'
+import React from 'react'
 import { ShoppingCart, Car, Heart, BookOpen, Gamepad2, Home, Shirt, CreditCard, ArrowLeftRight, MoreHorizontal } from 'lucide-react'
 
-export const MONTHS_PT = ['Janeiro', 'Fevereiro', 'MarÃ§o', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+export const MONTHS_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 export const MONTHS_S = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-export const WEEK_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'SÃ¡b']
+export const WEEK_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 export const CAT: Record<string, { color: string; icon: React.ReactNode }> = {
-    'AlimentaÃ§Ã£o': { color: '#f59e0b', icon: <ShoppingCart size={13} /> },
+    'Alimentação': { color: '#f59e0b', icon: <ShoppingCart size={13} /> },
     'Transporte': { color: '#3b82f6', icon: <Car size={13} /> },
-    'SaÃºde': { color: '#10b981', icon: <Heart size={13} /> },
-    'EducaÃ§Ã£o': { color: '#00e676', icon: <BookOpen size={13} /> },
+    'Saúde': { color: '#10b981', icon: <Heart size={13} /> },
+    'Educação': { color: '#00e676', icon: <BookOpen size={13} /> },
     'Lazer': { color: '#ec4899', icon: <Gamepad2 size={13} /> },
     'Moradia': { color: '#f97316', icon: <Home size={13} /> },
     'Roupas': { color: '#06b6d4', icon: <Shirt size={13} /> },
     'Assinaturas': { color: '#00bfa5', icon: <CreditCard size={13} /> },
-    'TransferÃªncia': { color: '#64748b', icon: <ArrowLeftRight size={13} /> },
+    'Transferência': { color: '#64748b', icon: <ArrowLeftRight size={13} /> },
     'Outros': { color: '#94a3b8', icon: <MoreHorizontal size={13} /> },
 }
 

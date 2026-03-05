@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -22,13 +22,13 @@ type Usuario = {
 }
 
 const STATUS_COLOR: Record<string, { bg: string; color: string; label: string }> = {
-    ativo: { bg: 'rgba(16,185,129,0.15)', color: '#10b981', label: 'âœ“ Ativo' },
-    trial: { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', label: 'â± Trial' },
-    inativo: { bg: 'rgba(239,68,68,0.15)', color: '#ef4444', label: 'âœ— Inativo' },
+    ativo: { bg: 'rgba(16,185,129,0.15)', color: '#10b981', label: '�S Ativo' },
+    trial: { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', label: '⏱ Trial' },
+    inativo: { bg: 'rgba(239,68,68,0.15)', color: '#ef4444', label: '�S Inativo' },
 }
 
 function fmtDate(d: string | null) {
-    if (!d) return 'â€”'
+    if (!d) return '�'
     return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
@@ -66,7 +66,7 @@ function AdminPanel() {
 
     const toggleStatus = async (u: Usuario) => {
         const newStatus = u.status === 'ativo' ? 'inativo' : 'ativo'
-        if (!confirm(`${newStatus === 'ativo' ? 'Ativar' : 'Desativar'} o usuÃ¡rio ${u.nome || u.phone}?`)) return
+        if (!confirm(`${newStatus === 'ativo' ? 'Ativar' : 'Desativar'} o usuário ${u.nome || u.phone}?`)) return
         setTogglingId(u.id)
         await fetch('/api/admin/usuarios', {
             method: 'PATCH',
@@ -85,7 +85,7 @@ function AdminPanel() {
         setTimeout(() => setCopied(null), 2000)
     }
 
-    // â”€â”€â”€ Computed metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ������ Computed metrics ������������������������������������������������������������������������������������������������������������
     const ativos = usuarios.filter(u => u.status === 'ativo').length
     const trial = usuarios.filter(u => u.status === 'trial').length
     const inativos = usuarios.filter(u => u.status === 'inativo').length
@@ -97,7 +97,7 @@ function AdminPanel() {
         return matchSearch && matchStatus
     })
 
-    // â”€â”€â”€ ExpiraÃ§Ã£o prÃ³xima â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ������ Expiração próxima ����������������������������������������������������������������������������������������������������������
     const expirando = usuarios.filter(u => {
         if (u.status !== 'ativo' || !u.data_expiracao) return false
         const days = (new Date(u.data_expiracao).getTime() - Date.now()) / 86400000
@@ -127,8 +127,8 @@ function AdminPanel() {
                             <Shield size={20} color="white" />
                         </div>
                         <div>
-                            <h1 style={{ fontSize: '1.3rem', fontWeight: 800, background: 'linear-gradient(135deg,#f1f5f9,#69f0ae)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Admin â€” GestorZap</h1>
-                            <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>{usuarios.length} usuÃ¡rios no total</p>
+                            <h1 style={{ fontSize: '1.3rem', fontWeight: 800, background: 'linear-gradient(135deg,#f1f5f9,#69f0ae)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Admin � GestorZap</h1>
+                            <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>{usuarios.length} usuários no total</p>
                         </div>
                     </div>
                     <button onClick={fetchUsuarios} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'inherit' }}>
@@ -156,7 +156,7 @@ function AdminPanel() {
                 {/* Expiring soon alert */}
                 {expirando > 0 && (
                     <div style={{ marginBottom: 20, padding: '12px 16px', borderRadius: 12, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem', color: '#f59e0b' }}>
-                        âš ï¸ <strong>{expirando} assinante{expirando > 1 ? 's' : ''}</strong> com expiraÃ§Ã£o nos prÃ³ximos 5 dias
+                        �a�️ <strong>{expirando} assinante{expirando > 1 ? 's' : ''}</strong> com expiração nos próximos 5 dias
                     </div>
                 )}
 
@@ -181,7 +181,7 @@ function AdminPanel() {
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
-                                    {['UsuÃ¡rio', 'Telefone', 'Status', 'Expira em', 'Criado em', 'Ãšltimo acesso', 'AÃ§Ãµes'].map(h => (
+                                    {['Usuário', 'Telefone', 'Status', 'Expira em', 'Criado em', '�altimo acesso', 'Ações'].map(h => (
                                         <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#475569', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                                     ))}
                                 </tr>
@@ -190,7 +190,7 @@ function AdminPanel() {
                                 {loading ? (
                                     <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#475569' }}>Carregando...</td></tr>
                                 ) : filtered.length === 0 ? (
-                                    <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#475569' }}>Nenhum usuÃ¡rio encontrado</td></tr>
+                                    <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#475569' }}>Nenhum usuário encontrado</td></tr>
                                 ) : filtered.map(u => {
                                     const st = STATUS_COLOR[u.status] || STATUS_COLOR.inativo
                                     const expirado = u.data_expiracao && new Date(u.data_expiracao) < new Date()
@@ -199,14 +199,14 @@ function AdminPanel() {
                                         <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.15s' }} onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)')} onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}>
                                             <td style={{ padding: '14px 16px' }}>
                                                 <div style={{ fontWeight: 600, color: '#e2e8f0' }}>{u.nome || '(sem nome)'}</div>
-                                                <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 2 }}>{u.email || 'â€”'}</div>
+                                                <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 2 }}>{u.email || '�'}</div>
                                             </td>
                                             <td style={{ padding: '14px 16px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{fmtPhone(u.phone)}</td>
                                             <td style={{ padding: '14px 16px' }}>
                                                 <span style={{ padding: '3px 10px', borderRadius: 20, background: st.bg, color: st.color, fontWeight: 700, fontSize: '0.72rem', whiteSpace: 'nowrap' }}>{st.label}</span>
                                             </td>
                                             <td style={{ padding: '14px 16px', color: expirado ? '#ef4444' : expiraBreve ? '#f59e0b' : '#64748b', whiteSpace: 'nowrap', fontWeight: (expirado || expiraBreve) ? 600 : 400 }}>
-                                                {fmtDate(u.data_expiracao)}{expirado ? ' âš ï¸' : expiraBreve ? ' â³' : ''}
+                                                {fmtDate(u.data_expiracao)}{expirado ? ' �a�️' : expiraBreve ? ' ⏳' : ''}
                                             </td>
                                             <td style={{ padding: '14px 16px', color: '#475569', whiteSpace: 'nowrap' }}>{fmtDate(u.criado_em)}</td>
                                             <td style={{ padding: '14px 16px', color: '#475569', whiteSpace: 'nowrap' }}>{fmtDate(u.ultimo_acesso)}</td>
@@ -231,7 +231,7 @@ function AdminPanel() {
                     </div>
                     {filtered.length > 0 && (
                         <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#475569' }}>
-                            <span><strong style={{ color: '#94a3b8' }}>{filtered.length}</strong> de {usuarios.length} usuÃ¡rios</span>
+                            <span><strong style={{ color: '#94a3b8' }}>{filtered.length}</strong> de {usuarios.length} usuários</span>
                             <span>MRR filtrado: <strong style={{ color: '#00bfa5' }}>R$ {(filtered.filter(u => u.status === 'ativo').length * 29.9).toFixed(2).replace('.', ',')}</strong></span>
                         </div>
                     )}

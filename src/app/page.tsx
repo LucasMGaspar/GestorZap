@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, Suspense, useMemo } from 'react'
@@ -19,7 +19,7 @@ import { TabBudget } from '@/components/TabBudget'
 import { TabCards } from '@/components/TabCards'
 import { MONTHS_PT, MONTHS_S, WEEK_DAYS, CAT, cc, fmt, h2r } from '@/lib/utils'
 
-// â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ������ Main ����������������������������������������������������������������������������������������������������������������������������������������
 function Dashboard() {
   const sp = useSearchParams()
   const [token] = useState(sp.get('token') || '')
@@ -72,7 +72,7 @@ function Dashboard() {
     try { const b = localStorage.getItem('fin_budgets'); if (b) setBudgets(JSON.parse(b)) } catch { }
   }, [])
 
-  // â”€â”€â”€ Save budget (localStorage + Supabase) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ������ Save budget (localStorage + Supabase) ����������������������������������������������������������������
   const saveBudget = useCallback(async (cat: string, val: string) => {
     const n = parseFloat(val); if (isNaN(n) || n <= 0) return
     const next = { ...budgets, [cat]: n }
@@ -82,11 +82,11 @@ function Dashboard() {
       try {
         const client = getSupabase()
         if (client) await client.from('budgets').upsert({ phone, categoria: cat, valor: n }, { onConflict: 'phone,categoria' })
-      } catch { /* fallback localStorage jÃ¡ salvo */ }
+      } catch { /* fallback localStorage já salvo */ }
     }
   }, [budgets, phone])
 
-  // â”€â”€â”€ Fetch data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ������ Fetch data ����������������������������������������������������������������������������������������������������������������������
   const fetchData = useCallback(async () => {
     if (!token) return
     setLoading(true)
@@ -165,7 +165,7 @@ function Dashboard() {
           setBudgets(sbBudgets)
           localStorage.setItem('fin_budgets', JSON.stringify(sbBudgets))
         }
-      } catch { /* tabela budgets pode nÃ£o existir, usar localStorage */ }
+      } catch { /* tabela budgets pode não existir, usar localStorage */ }
 
     } catch { setAuthError('erro_rede') }
     setLoading(false)
@@ -173,7 +173,7 @@ function Dashboard() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // â”€â”€â”€ Card CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ������ Card CRUD ������������������������������������������������������������������������������������������������������������������������
   const addCard = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newCard.nome_cartao.trim() || !phone) return
@@ -188,16 +188,16 @@ function Dashboard() {
   }
 
   const deleteCard = async (id: string) => {
-    if (!confirm('Deseja excluir este cartÃ£o?')) return
+    if (!confirm('Deseja excluir este cartão?')) return
     const client = getSupabase()
     if (client) {
       const { error } = await client.from('cartoes').delete().eq('id', id)
-      if (error) { alert('NÃ£o foi possÃ­vel excluir. Este cartÃ£o possui transaÃ§Ãµes vinculadas.'); return }
+      if (error) { alert('Não foi possível excluir. Este cartão possui transações vinculadas.'); return }
       setCartoes(prev => prev.filter(c => c.id !== id))
     }
   }
 
-  // â”€â”€â”€ Edit transaction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ������ Edit transaction ����������������������������������������������������������������������������������������������������������
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingTx) return
@@ -223,23 +223,23 @@ function Dashboard() {
         setTxAll(prev => prev.map(t => t.id === data.id ? data : t))
         setEditingTx(null)
       } else {
-        alert('Erro ao salvar a ediÃ§Ã£o. Tente novamente.')
+        alert('Erro ao salvar a edição. Tente novamente.')
       }
     }
     setSavingTx(false)
   }
 
-  // â”€â”€â”€ Pay bill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ������ Pay bill ��������������������������������������������������������������������������������������������������������������������������
   const pagarFatura = async (cartaoId: string, itens: Transacao[]) => {
     const cartao = cartoes.find(c => c.id === cartaoId)
     const total = itens.reduce((a, t) => a + t.valor, 0)
-    if (!confirm(`Confirmar pagamento da fatura ${cartao?.nome_cartao} de ${fmt(total)}?\n\nUma transaÃ§Ã£o PIX/dÃ©bito serÃ¡ criada no valor total.`)) return
+    if (!confirm(`Confirmar pagamento da fatura ${cartao?.nome_cartao} de ${fmt(total)}?\n\nUma transação PIX/débito será criada no valor total.`)) return
     setPagandoFatura(cartaoId)
     const client = getSupabase()
     if (client) {
       const diaVenc = cartao?.dia_vencimento || 1
       const hoje = `${year}-${String(month + 1).padStart(2, '0')}-${String(diaVenc).padStart(2, '0')}`
-      await client.from('transacoes').insert({ phone, tipo: 'gasto', valor: total, categoria: 'TransferÃªncia', descricao: `Pagamento fatura ${cartao?.nome_cartao}`, data: hoje, cartao_id: null, criado_em: new Date().toISOString() })
+      await client.from('transacoes').insert({ phone, tipo: 'gasto', valor: total, categoria: 'Transferência', descricao: `Pagamento fatura ${cartao?.nome_cartao}`, data: hoje, cartao_id: null, criado_em: new Date().toISOString() })
       const parcelas = itens.filter(t => t.tipo === 'parcela' && t.compra_parcelada_id)
       for (const p of parcelas) {
         await client.from('faturas').update({ status: 'pago' }).eq('compra_parcelada_id', p.compra_parcelada_id!).eq('vencimento', p.data)
@@ -249,19 +249,19 @@ function Dashboard() {
     setPagandoFatura(null)
   }
 
-  // â”€â”€â”€ CSV Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ������ CSV Export ����������������������������������������������������������������������������������������������������������������������
   const exportCSV = () => {
-    const rows = [['Data', 'Tipo', 'Categoria', 'DescriÃ§Ã£o', 'Valor'], ...filteredTx.map(t => [t.data, t.tipo, t.categoria, t.descricao, t.valor.toFixed(2).replace('.', ',')])]
+    const rows = [['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'], ...filteredTx.map(t => [t.data, t.tipo, t.categoria, t.descricao, t.valor.toFixed(2).replace('.', ',')])]
     const csv = rows.map(r => r.map(c => `"${c}"`).join(';')).join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = `transacoes-${MONTHS_PT[month]}-${year}.csv`; a.click()
   }
 
-  // â”€â”€â”€ Derived data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ������ Derived data ������������������������������������������������������������������������������������������������������������������
   const paidCartaoIds = new Set<string>()
   txAll.forEach(t => {
-    if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'TransferÃªncia' && t.descricao?.startsWith('Pagamento fatura ')) {
+    if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'Transferência' && t.descricao?.startsWith('Pagamento fatura ')) {
       const nome = t.descricao.replace('Pagamento fatura ', '')
       const cartao = cartoes.find(c => c.nome_cartao === nome)
       if (cartao) paidCartaoIds.add(cartao.id)
@@ -327,7 +327,7 @@ function Dashboard() {
   const annualData = useMemo(() => {
     const paidAnnualBills = new Set<string>()
     txYear.forEach(t => {
-      if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'TransferÃªncia' && t.descricao?.startsWith('Pagamento fatura ')) {
+      if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'Transferência' && t.descricao?.startsWith('Pagamento fatura ')) {
         const nome = t.descricao.replace('Pagamento fatura ', '')
         const cartao = cartoes.find(c => c.nome_cartao === nome)
         if (cartao) { const mo = new Date(t.data + 'T12:00:00').getMonth(); paidAnnualBills.add(`${cartao.id}-${mo}`) }
@@ -375,7 +375,7 @@ function Dashboard() {
   const cats = Object.keys(CAT)
   const years = [year - 1, year, year + 1]
 
-  // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ������ Render ������������������������������������������������������������������������������������������������������������������������������
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: 0 }}>
       {/* Background blobs */}
@@ -397,7 +397,7 @@ function Dashboard() {
             </div>
           </div>
           <div className="dash-header-controls" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {phone && <span style={{ fontSize: '0.75rem', color: 'var(--text2)', padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>ðŸ“± +{phone}</span>}
+            {phone && <span style={{ fontSize: '0.75rem', color: 'var(--text2)', padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>�x� +{phone}</span>}
             <select className="input-field" value={month} onChange={e => setMonth(Number(e.target.value))}>
               {MONTHS_S.map((m, i) => <option key={i} value={i}>{m}</option>)}
             </select>
@@ -424,11 +424,11 @@ function Dashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <AlertTriangle size={16} color={isExpired ? '#ef4444' : '#f59e0b'} />
                 <span style={{ fontSize: '0.82rem', color: isExpired ? '#f87171' : '#fbbf24', fontWeight: 600 }}>
-                  {isExpired ? 'âš ï¸ Sua assinatura estÃ¡ inativa. Renove para continuar usando o GestorZap.' : `â³ Sua assinatura expira em ${daysLeft} dia${daysLeft !== 1 ? 's' : ''}. Renove para nÃ£o perder o acesso.`}
+                  {isExpired ? '�a�️ Sua assinatura está inativa. Renove para continuar usando o GestorZap.' : `⏳ Sua assinatura expira em ${daysLeft} dia${daysLeft !== 1 ? 's' : ''}. Renove para não perder o acesso.`}
                 </span>
               </div>
               <a href={salesUrl} target="_blank" rel="noreferrer" style={{ padding: '7px 16px', borderRadius: 8, background: isExpired ? '#ef4444' : '#f59e0b', color: 'white', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                Renovar agora â€” R$29,90/mÃªs
+                Renovar agora � R$29,90/mês
               </a>
             </div>
           )
@@ -437,15 +437,15 @@ function Dashboard() {
         {/* Auth states */}
         {authError === 'token_required' || (!token && !loading) ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}>ðŸ”’</span></div>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}>�x</span></div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Acesso Restrito</h2>
-            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>Este dashboard sÃ³ pode ser acessado pelo link enviado no seu WhatsApp.</p>
+            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>Este dashboard só pode ser acessado pelo link enviado no seu WhatsApp.</p>
           </div>
         ) : authError === 'token_invalido' ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}>âŒ</span></div>
-            <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Token InvÃ¡lido</h2>
-            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>O link de acesso nÃ£o Ã© vÃ¡lido ou expirou. PeÃ§a um novo link pelo WhatsApp.</p>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}>�R</span></div>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Token Inválido</h2>
+            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>O link de acesso não é válido ou expirou. Peça um novo link pelo WhatsApp.</p>
           </div>
         ) : loading && !phone ? (
           <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text2)' }}>Carregando...</div>
@@ -457,15 +457,15 @@ function Dashboard() {
                 <Calendar size={12} color="#69f0ae" />
                 <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#69f0ae' }}>{MONTHS_PT[month]} {year}</span>
               </div>
-              <span style={{ color: 'var(--text3)', fontSize: '0.78rem' }}>{txAll.length} transaÃ§Ãµes</span>
+              <span style={{ color: 'var(--text3)', fontSize: '0.78rem' }}>{txAll.length} transações</span>
             </div>
 
             {/* Summary metric cards */}
             <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 16 }}>
-              <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastosDebit.length + parcelasDebito.length} transaÃ§Ãµes no dÃ©bito/PIX`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
-              <MCard label="Total Receitas" value={fmt(totalR)} sub={`${receitas.length} transaÃ§Ãµes`} icon={<ArrowUpCircle size={18} />} color="#10b981" grad="rgba(16,185,129,0.1)" pct={pctR} />
-              <MCard label="Saldo Real" value={fmt(saldoReal)} sub="DÃ©bito/PIX (crÃ©dito nÃ£o incluÃ­do)" icon={saldoReal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldoReal >= 0 ? '#10b981' : '#ef4444'} grad={saldoReal >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
-              <MCard label="CrÃ©dito a Pagar" value={fmt(totalCredit)} sub={(gastosCredit.length + parcelasCartao.length) > 0 ? `${gastosCredit.length + parcelasCartao.length} lanÃ§amento${(gastosCredit.length + parcelasCartao.length) > 1 ? 's' : ''} na fatura` : 'Nenhum lanÃ§amento na fatura'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
+              <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastosDebit.length + parcelasDebito.length} transações no débito/PIX`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
+              <MCard label="Total Receitas" value={fmt(totalR)} sub={`${receitas.length} transações`} icon={<ArrowUpCircle size={18} />} color="#10b981" grad="rgba(16,185,129,0.1)" pct={pctR} />
+              <MCard label="Saldo Real" value={fmt(saldoReal)} sub="Débito/PIX (crédito não incluído)" icon={saldoReal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldoReal >= 0 ? '#10b981' : '#ef4444'} grad={saldoReal >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
+              <MCard label="Crédito a Pagar" value={fmt(totalCredit)} sub={(gastosCredit.length + parcelasCartao.length) > 0 ? `${gastosCredit.length + parcelasCartao.length} lançamento${(gastosCredit.length + parcelasCartao.length) > 1 ? 's' : ''} na fatura` : 'Nenhum lançamento na fatura'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
             </div>
 
             {/* Credit detail */}
@@ -484,7 +484,7 @@ function Dashboard() {
                   {grupos.map((g, gi) => (
                     <div key={g.id} style={{ marginBottom: gi < grupos.length - 1 ? 16 : 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}>ðŸ’³ {g.nome}</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}>�x� {g.nome}</span>
                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b' }}>{fmt(g.itens.reduce((a, t) => a + t.valor, 0))}</span>
                       </div>
                       {g.itens.map(t => (
@@ -495,7 +495,7 @@ function Dashboard() {
                         </div>
                       ))}
                       <button onClick={() => pagarFatura(g.id, g.itens)} disabled={pagandoFatura === g.id} style={{ marginTop: 10, width: '100%', padding: '8px 0', borderRadius: 8, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.08)', color: '#10b981', fontSize: '0.75rem', fontWeight: 700, cursor: pagandoFatura === g.id ? 'not-allowed' : 'pointer', opacity: pagandoFatura === g.id ? 0.6 : 1, fontFamily: 'inherit' }}>
-                        {pagandoFatura === g.id ? 'Registrando...' : `âœ“ Paguei a fatura do ${g.nome}`}
+                        {pagandoFatura === g.id ? 'Registrando...' : `�S Paguei a fatura do ${g.nome}`}
                       </button>
                     </div>
                   ))}
@@ -506,9 +506,9 @@ function Dashboard() {
             {/* Insights */}
             {txAll.length > 0 && (
               <div className="insight-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 10, marginBottom: 20 }}>
-                {isCurrentMonthYear && <ICard emoji="ðŸ”®" title="PrevisÃ£o do mÃªs" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />}
-                <ICard emoji="ðŸ“ˆ" title="MÃ©dia diÃ¡ria" value={fmt(avgDailySpend)} sub="de gastos por dia" color="#ef4444" />
-                <ICard emoji="ðŸ’°" title="Saldo comprometido" value={fmt(saldo)} sub={saldo >= 0 ? 'Incluindo crÃ©dito pendente' : 'AtenÃ§Ã£o ao crÃ©dito!'} color={saldo >= 0 ? '#10b981' : '#ef4444'} />
+                {isCurrentMonthYear && <ICard emoji="�x�" title="Previsão do mês" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />}
+                <ICard emoji="�x�" title="Média diária" value={fmt(avgDailySpend)} sub="de gastos por dia" color="#ef4444" />
+                <ICard emoji="�x�" title="Saldo comprometido" value={fmt(saldo)} sub={saldo >= 0 ? 'Incluindo crédito pendente' : 'Atenção ao crédito!'} color={saldo >= 0 ? '#10b981' : '#ef4444'} />
               </div>
             )}
 
@@ -516,7 +516,7 @@ function Dashboard() {
             <div className="tab-bar" style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'rgba(255,255,255,0.04)', padding: 4, borderRadius: 12, width: 'fit-content', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
               {(['transactions', 'cards', 'budget', 'annual', 'overview'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{ padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s', background: tab === t ? 'linear-gradient(135deg,#00bfa5,#00e676)' : 'transparent', color: tab === t ? 'white' : '#94a3b8' }}>
-                  {t === 'transactions' ? 'ðŸ§¾ TransaÃ§Ãµes' : t === 'cards' ? 'ðŸ’³ CartÃµes' : t === 'budget' ? 'ðŸŽ¯ OrÃ§amento' : t === 'annual' ? 'ðŸ“… Anual' : 'ðŸ“Š VisÃ£o Geral'}
+                  {t === 'transactions' ? '�x�� Transações' : t === 'cards' ? '�x� Cartões' : t === 'budget' ? '�x}� Orçamento' : t === 'annual' ? '�x& Anual' : '�x` Visão Geral'}
                 </button>
               ))}
             </div>
@@ -546,17 +546,17 @@ function Dashboard() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
           <div className="glass" style={{ width: '100%', maxWidth: 400, padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Editar TransaÃ§Ã£o</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Editar Transação</h3>
               <button onClick={() => setEditingTx(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <form onSubmit={saveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {editingTx.tipo === 'parcela' && (
                 <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(0,230,118,0.08)', border: '1px solid rgba(0,230,118,0.15)', fontSize: '0.75rem', color: '#69f0ae' }}>
-                  âš ï¸ VocÃª estÃ¡ editando uma parcela. A fatura correspondente serÃ¡ atualizada automaticamente.
+                  �a�️ Você está editando uma parcela. A fatura correspondente será atualizada automaticamente.
                 </div>
               )}
               <div>
-                <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DESCRIÃ‡ÃƒO</label>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DESCRI�!ÒO</label>
                 <input className="input-field" type="text" value={editingTx.descricao || ''} onChange={e => setEditingTx({ ...editingTx, descricao: e.target.value })} required style={{ width: '100%' }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -589,7 +589,7 @@ function Dashboard() {
   )
 }
 
-// â”€â”€â”€ Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ������ Export ��������������������������������������������������������������������������������������������������������������������������������������
 export default function Page() {
   return (
     <Suspense fallback={

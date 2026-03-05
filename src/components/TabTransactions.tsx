@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+import React, { useState } from 'react'
 import { Search, Filter, Download, X, Edit3, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { Transacao, Cartao } from '@/lib/supabase'
 import { MONTHS_PT, fmt, cc, ci, h2r } from '@/lib/utils'
@@ -47,7 +47,7 @@ export function TabTransactions({
         <div className="glass" style={{ padding: 24 }}>
             {/* Filter bar */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>ðŸ§¾ TransaÃ§Ãµes â€” {MONTHS_PT[month]}</h3>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>�x�� Transações � {MONTHS_PT[month]}</h3>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
                         <Search size={13} color="#94a3b8" />
@@ -88,15 +88,15 @@ export function TabTransactions({
                         </select>
                     </div>
                     <div>
-                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>VALOR MÃN</label>
+                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>VALOR MÍN</label>
                         <input className="input-field" type="number" value={fMin} onChange={e => { setFMin(e.target.value); setVisibleCount(PAGE_SIZE) }} placeholder="R$ 0" style={{ width: '100%', fontSize: '0.8rem' }} />
                     </div>
                     <div>
-                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>VALOR MÃX</label>
+                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>VALOR MÁX</label>
                         <input className="input-field" type="number" value={fMax} onChange={e => { setFMax(e.target.value); setVisibleCount(PAGE_SIZE) }} placeholder="R$ 9999" style={{ width: '100%', fontSize: '0.8rem' }} />
                     </div>
                     <div>
-                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>DATA INÃCIO</label>
+                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>DATA INÍCIO</label>
                         <input className="input-field" type="date" value={fStart} onChange={e => { setFStart(e.target.value); setVisibleCount(PAGE_SIZE) }} style={{ width: '100%', fontSize: '0.8rem' }} />
                     </div>
                     <div>
@@ -130,7 +130,7 @@ export function TabTransactions({
                     )}
 
                     <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}><strong style={{ color: 'var(--text)' }}>{filteredTx.length}</strong> transaÃ§Ãµes{hasMore ? ` (exibindo ${visibleCount})` : ''}</span>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}><strong style={{ color: 'var(--text)' }}>{filteredTx.length}</strong> transações{hasMore ? ` (exibindo ${visibleCount})` : ''}</span>
                         <div style={{ display: 'flex', gap: 16, fontSize: '0.78rem' }}>
                             <span style={{ color: '#ef4444' }}>Gastos: <strong>{fmt(filteredTx.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela').reduce((a, t) => a + t.valor, 0))}</strong></span>
                             <span style={{ color: '#10b981' }}>Receitas: <strong>{fmt(filteredTx.filter(t => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0))}</strong></span>

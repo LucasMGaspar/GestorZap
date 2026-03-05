@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import { Target, AlertTriangle, CreditCard } from 'lucide-react'
 import { Cartao, CompraParcelada } from '@/lib/supabase'
 import { fmt, cc, ci, h2r, CAT } from '@/lib/utils'
@@ -26,7 +26,7 @@ export function TabBudget({ catMap, totalG, parcelasAtivas, cartoes, budgets, ed
             {parcelasAtivas.length > 0 && (
                 <div className="glass" style={{ padding: 24, marginBottom: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                        <span style={{ fontSize: '1rem' }}>ðŸ’³</span>
+                        <span style={{ fontSize: '1rem' }}>�x�</span>
                         <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>Parcelas Ativas</h3>
                         <span style={{ fontSize: '0.72rem', color: 'var(--text3)', marginLeft: 'auto' }}>
                             {parcelasAtivas.length} compra{parcelasAtivas.length > 1 ? 's' : ''} parcelada{parcelasAtivas.length > 1 ? 's' : ''}
@@ -46,7 +46,7 @@ export function TabBudget({ catMap, totalG, parcelasAtivas, cartoes, budgets, ed
                                             <div>
                                                 <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{p.descricao}</div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                                    <span style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>{p.categoria} Â· {fmt(p.valorParcela)}/parcela</span>
+                                                    <span style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>{p.categoria} · {fmt(p.valorParcela)}/parcela</span>
                                                     {p.cartao_id && cartoes.find(c => c.id === p.cartao_id) && (
                                                         <span style={{ fontSize: '0.67rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                                                             <CreditCard size={10} /> {cartoes.find(c => c.id === p.cartao_id)?.nome_cartao}
@@ -56,7 +56,7 @@ export function TabBudget({ catMap, totalG, parcelasAtivas, cartoes, budgets, ed
                                             </div>
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: done ? '#10b981' : '#f59e0b' }}>{done ? 'âœ… Quitado!' : `${restantes} restante${restantes > 1 ? 's' : ''}`}</div>
+                                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: done ? '#10b981' : '#f59e0b' }}>{done ? '�S& Quitado!' : `${restantes} restante${restantes > 1 ? 's' : ''}`}</div>
                                             {!done && <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>Ainda: {fmt(totalDevido)}</div>}
                                         </div>
                                     </div>
@@ -80,7 +80,7 @@ export function TabBudget({ catMap, totalG, parcelasAtivas, cartoes, budgets, ed
             {/* Budget grid */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                 <Target size={16} color="#69f0ae" />
-                <span style={{ fontSize: '0.82rem', color: 'var(--text2)' }}>Defina metas de orÃ§amento por categoria. Os dados sÃ£o sincronizados com sua conta.</span>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text2)' }}>Defina metas de orçamento por categoria. Os dados são sincronizados com sua conta.</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
                 {cats.map(cat => {
