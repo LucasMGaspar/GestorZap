@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { getSupabase, Transacao, Cartao, CompraParcelada } from '@/lib/supabase'
 import {
   Wallet, RefreshCw, TrendingDown, TrendingUp, ArrowDownCircle, ArrowUpCircle,
-  Calendar, CreditCard, X, Edit3, AlertTriangle
+  Calendar, CreditCard, X, Edit3, AlertTriangle, Lock, ShieldAlert
 } from 'lucide-react'
 
 import { Empty } from '@/components/Empty'
@@ -437,13 +437,13 @@ function Dashboard() {
         {/* Auth states */}
         {authError === 'token_required' || (!token && !loading) ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}></span></div>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><Lock size={32} color="#ef4444" /></div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Acesso Restrito</h2>
             <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>Este dashboard só pode ser acessado pelo link enviado no seu WhatsApp.</p>
           </div>
         ) : authError === 'token_invalido' ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}></span></div>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><ShieldAlert size={32} color="#ef4444" /></div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Token Inválido</h2>
             <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>O link de acesso não é válido ou expirou. Peça um novo link pelo WhatsApp.</p>
           </div>
