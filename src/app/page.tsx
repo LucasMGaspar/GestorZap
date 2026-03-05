@@ -389,7 +389,7 @@ function Dashboard() {
         <header className="dash-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ width: 48, height: 48, borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 24px rgba(16,185,129,0.35)' }}>
-              <img src="/logo.png" alt="GestorZap" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src="/icon.png" alt="GestorZap" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div>
               <h1 style={{ fontSize: '1.35rem', fontWeight: 800, background: 'linear-gradient(135deg,#f1f5f9,#69f0ae)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Gestor Financeiro</h1>
