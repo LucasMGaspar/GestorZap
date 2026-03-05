@@ -392,7 +392,7 @@ function Dashboard() {
               <img src="/icon.png" alt="GestorZap" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.35rem', fontWeight: 800, background: 'linear-gradient(135deg,#f1f5f9,#69f0ae)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Gestor Financeiro</h1>
+              <h1 style={{ fontSize: '1.35rem', fontWeight: 800, background: 'linear-gradient(135deg,#f1f5f9,#69f0ae)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Zapi Finanças</h1>
               <p style={{ fontSize: '0.76rem', color: 'var(--text2)', marginTop: 1 }}>Dashboard pessoal via WhatsApp</p>
             </div>
           </div>
