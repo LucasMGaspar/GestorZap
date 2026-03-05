@@ -1,62 +1,46 @@
-'use client'
+﻿'use client'
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, Suspense, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getSupabase, Transacao, Cartao } from '@/lib/supabase'
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, PieChart, Pie, Legend, LineChart, Line
-} from 'recharts'
+import { getSupabase, Transacao, Cartao, CompraParcelada } from '@/lib/supabase'
 import {
   Wallet, RefreshCw, TrendingDown, TrendingUp, ArrowDownCircle, ArrowUpCircle,
-  Calendar, MessageCircle, ShoppingCart, Car, Heart, BookOpen, Gamepad2, Home,
-  Shirt, CreditCard, ArrowLeftRight, MoreHorizontal, BarChart2, Search,
-  Download, Target, ChevronUp, ChevronDown, AlertTriangle, Zap, Filter, X, Edit3
+  Calendar, CreditCard, X, Edit3, AlertTriangle
 } from 'lucide-react'
 
 import { Empty } from '@/components/Empty'
 import { ICard } from '@/components/ICard'
 import { MCard } from '@/components/MCard'
-import { TRow } from '@/components/TRow'
-import { MONTHS_PT, MONTHS_S, WEEK_DAYS, CAT, cc, ci, fmt, h2r } from '@/lib/utils'
+import { TabOverview } from '@/components/TabOverview'
+import { TabTransactions } from '@/components/TabTransactions'
+import { TabAnnual } from '@/components/TabAnnual'
+import { TabBudget } from '@/components/TabBudget'
+import { TabCards } from '@/components/TabCards'
+import { MONTHS_PT, MONTHS_S, WEEK_DAYS, CAT, cc, fmt, h2r } from '@/lib/utils'
 
-// ─── Tooltip Components ───────────────────────────────────────────────────────
-const CT = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{ background: '#0d1220', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 16px', boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
-      {label && <p style={{ color: '#64748b', fontSize: 11, marginBottom: 8 }}>{label}</p>}
-      {payload.map((p: any, i: number) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 2 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-          <span style={{ color: '#94a3b8' }}>{p.name}:</span>
-          <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{fmt(p.value ?? 0)}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
-type CompraParcelada = { id: string; phone: string; descricao: string; valor_total: number; n_parcelas: number; valor_parcela: number; categoria: string; data_inicio: string; ativa: boolean; criado_em: string; cartao_id?: string }
-
+// â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Dashboard() {
   const sp = useSearchParams()
   const [token] = useState(sp.get('token') || '')
   const [authError, setAuthError] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
-  const [txAll, setTxAll] = useState<Transacao[]>([])       // por ciclo de fatura
+
+  // Data
+  const [txAll, setTxAll] = useState<Transacao[]>([])
   const [txPrev, setTxPrev] = useState<Transacao[]>([])
   const [txYear, setTxYear] = useState<Transacao[]>([])
   const [comprasParceladas, setComprasParceladas] = useState<CompraParcelada[]>([])
   const [cartoes, setCartoes] = useState<Cartao[]>([])
   const [loading, setLoading] = useState(false)
-  const [pagandoFatura, setPagandoFatura] = useState<string | null>(null) // cartao_id sendo pago
+  const [pagandoFatura, setPagandoFatura] = useState<string | null>(null)
+
+  // Navigation
   const [month, setMonth] = useState(new Date().getMonth())
   const [year, setYear] = useState(new Date().getFullYear())
   const [tab, setTab] = useState<'transactions' | 'cards' | 'budget' | 'annual' | 'overview'>('transactions')
-  // Filters
+
+  // Transaction filters
   const [fType, setFType] = useState<'all' | 'gasto' | 'receita' | 'parcela'>('all')
   const [fCat, setFCat] = useState('all')
   const [fMin, setFMin] = useState('')
@@ -65,130 +49,131 @@ function Dashboard() {
   const [fEnd, setFEnd] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [search, setSearch] = useState('')
-  // Budgets (localStorage)
+
+  // Budgets
   const [budgets, setBudgets] = useState<Record<string, number>>({})
   const [editBudget, setEditBudget] = useState<Record<string, string>>({})
 
-  // Form for new Card
+  // Cards form
   const [newCard, setNewCard] = useState({ nome_cartao: '', dia_fechamento: 1, dia_vencimento: 10 })
   const [savingCard, setSavingCard] = useState(false)
 
-  // Edit Transaction
+  // Edit transaction modal
   const [editingTx, setEditingTx] = useState<Transacao | null>(null)
   const [editingTxOriginalData, setEditingTxOriginalData] = useState<string>('')
   const [savingTx, setSavingTx] = useState(false)
 
-  // Load budgets
-  useEffect(() => { try { const b = localStorage.getItem('fin_budgets'); if (b) setBudgets(JSON.parse(b)) } catch { } }, [])
-  const saveBudget = (cat: string, val: string) => {
-    const n = parseFloat(val); if (isNaN(n) || n <= 0) return
-    const next = { ...budgets, [cat]: n }; setBudgets(next); localStorage.setItem('fin_budgets', JSON.stringify(next))
-  }
+  // Subscription status
+  const [userStatus, setUserStatus] = useState<string>('ativo')
+  const [userExpiracao, setUserExpiracao] = useState<string | null>(null)
 
+  // Load budgets from localStorage on startup
+  useEffect(() => {
+    try { const b = localStorage.getItem('fin_budgets'); if (b) setBudgets(JSON.parse(b)) } catch { }
+  }, [])
+
+  // â”€â”€â”€ Save budget (localStorage + Supabase) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const saveBudget = useCallback(async (cat: string, val: string) => {
+    const n = parseFloat(val); if (isNaN(n) || n <= 0) return
+    const next = { ...budgets, [cat]: n }
+    setBudgets(next)
+    localStorage.setItem('fin_budgets', JSON.stringify(next))
+    if (phone) {
+      try {
+        const client = getSupabase()
+        if (client) await client.from('budgets').upsert({ phone, categoria: cat, valor: n }, { onConflict: 'phone,categoria' })
+      } catch { /* fallback localStorage jÃ¡ salvo */ }
+    }
+  }, [budgets, phone])
+
+  // â”€â”€â”€ Fetch data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchData = useCallback(async () => {
     if (!token) return
     setLoading(true)
     setAuthError(null)
     try {
-      // Step 1: validate token directly in browser (client-side) to avoid Vercel timeouts
       const client = getSupabase()
       if (!client) { setLoading(false); return }
 
+      // Step 1: validate token
       const { data: userData, error: userErr } = await client
-        .from('usuarios')
-        .select('phone')
-        .eq('token', token)
-        .single()
-
+        .from('usuarios').select('phone, status, data_expiracao').eq('token', token).single()
       if (userErr || !userData) { setAuthError('token_invalido'); setLoading(false); return }
 
       const resolvedPhone = userData.phone
       setPhone(resolvedPhone)
+      if (userData.status) setUserStatus(userData.status)
+      if (userData.data_expiracao) setUserExpiracao(userData.data_expiracao)
 
-      // Step 2: Calculate date ranges
+      // Step 2: date ranges
       const pmMonth = month === 0 ? 11 : month - 1
       const pmYear = month === 0 ? year - 1 : year
-
       const prevPmMonth = pmMonth === 0 ? 11 : pmMonth - 1
       const prevPmYear = pmMonth === 0 ? pmYear - 1 : pmYear
-
       const [pm, py] = [pmMonth, pmYear]
 
-      // Get data for the current month view. Since credit cards bill usually close before the month ends,
-      // a purchase made late in the PREVIOUS month might belong to the CURRENT month's bill.
-      // E.g: February 25th purchase on a card that closes on the 20th belongs to the March bill.
-      // So we need to fetch since the 1st day of the previous month to be safe.
       const s = `${pmYear}-${String(pmMonth + 1).padStart(2, '0')}-01`
       const e = new Date(year, month + 1, 0).toISOString().split('T')[0]
-
       const ps = `${prevPmYear}-${String(prevPmMonth + 1).padStart(2, '0')}-01`
       const pe = new Date(py, pm + 1, 0).toISOString().split('T')[0]
-
       const ys = `${year}-01-01`, ye = `${year}-12-31`
+
       const [r1, r2, r3, r4, r5] = await Promise.all([
         client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', s).lte('data', e).order('data', { ascending: false }),
         client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', ps).lte('data', pe),
         client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', ys).lte('data', ye),
         client.from('compras_parceladas').select('*').eq('phone', resolvedPhone).eq('ativa', true).order('criado_em', { ascending: false }),
-        client.from('cartoes').select('*').eq('phone', resolvedPhone).order('nome_cartao', { ascending: true })
+        client.from('cartoes').select('*').eq('phone', resolvedPhone).order('nome_cartao', { ascending: true }),
       ])
 
       const fetchedCards = r5.data ?? []
 
-      // Help function to determine which MONTH (0-11) and YEAR a specific transaction truly belongs to
+      // Credit card cycle logic: determine which month a transaction truly belongs to
       const getRealMonthYear = (t: Transacao, cards: Cartao[]) => {
         const txDate = new Date(t.data + 'T12:00:00')
         const txMo = txDate.getMonth()
         const txYr = txDate.getFullYear()
-
-        if (t.tipo !== 'gasto' || !t.cartao_id) return { m: txMo, y: txYr } // PIX, Debit, Income, Installment => pure competence/date
-
+        if (t.tipo !== 'gasto' || !t.cartao_id) return { m: txMo, y: txYr }
         const card = cards.find(c => c.id === t.cartao_id)
         if (!card) return { m: txMo, y: txYr }
-
-        // It's a credit card expense
-        // If purchase day >= closing day, it jumps to the NEXT month's bill
         const buyDay = txDate.getDate()
-        let targetMo = txMo
-        let targetYr = txYr
-
+        let targetMo = txMo, targetYr = txYr
         if (buyDay >= card.dia_fechamento) {
           targetMo += 1
-          if (targetMo > 11) {
-            targetMo = 0
-            targetYr += 1
-          }
+          if (targetMo > 11) { targetMo = 0; targetYr += 1 }
         }
         return { m: targetMo, y: targetYr }
       }
 
-      // Lista e cards: por ciclo de fatura (pizza comprada no dia do fechamento vai pro próximo mês)
-      const processTxByCycle = (txs: Transacao[]) => {
-        return txs.filter(t => {
-          const target = getRealMonthYear(t, fetchedCards)
-          return target.m === month && target.y === year
-        })
-      }
-
-      // Mês anterior: por ciclo de fatura (para comparação %)
-      const processPrevTx = (txs: Transacao[]) => {
-        return txs.filter(t => {
-          const target = getRealMonthYear(t, fetchedCards)
-          return target.m === pm && target.y === py
-        })
-      }
+      const processTxByCycle = (txs: Transacao[]) =>
+        txs.filter(t => { const tgt = getRealMonthYear(t, fetchedCards); return tgt.m === month && tgt.y === year })
+      const processPrevTx = (txs: Transacao[]) =>
+        txs.filter(t => { const tgt = getRealMonthYear(t, fetchedCards); return tgt.m === pm && tgt.y === py })
 
       if (r1.data) setTxAll(processTxByCycle(r1.data))
       if (r2.data) setTxPrev(processPrevTx(r2.data))
-      if (r3.data) setTxYear(r3.data) // We leave annual raw to handle natively inside its own useMemo later
+      if (r3.data) setTxYear(r3.data)
       setComprasParceladas(r4.data ?? [])
       setCartoes(fetchedCards)
+
+      // Step 3: sync budgets from Supabase (override localStorage if data found)
+      try {
+        const { data: bdData } = await client.from('budgets').select('categoria,valor').eq('phone', resolvedPhone)
+        if (bdData && bdData.length > 0) {
+          const sbBudgets: Record<string, number> = {}
+          bdData.forEach((b: any) => { sbBudgets[b.categoria] = b.valor })
+          setBudgets(sbBudgets)
+          localStorage.setItem('fin_budgets', JSON.stringify(sbBudgets))
+        }
+      } catch { /* tabela budgets pode nÃ£o existir, usar localStorage */ }
+
     } catch { setAuthError('erro_rede') }
     setLoading(false)
   }, [token, month, year])
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // â”€â”€â”€ Card CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const addCard = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newCard.nome_cartao.trim() || !phone) return
@@ -203,18 +188,16 @@ function Dashboard() {
   }
 
   const deleteCard = async (id: string) => {
-    if (!confirm('Deseja excluir este cartão?')) return
+    if (!confirm('Deseja excluir este cartÃ£o?')) return
     const client = getSupabase()
     if (client) {
       const { error } = await client.from('cartoes').delete().eq('id', id)
-      if (error) {
-        alert('Não foi possível excluir. Este cartão possui transações vinculadas.')
-        return
-      }
+      if (error) { alert('NÃ£o foi possÃ­vel excluir. Este cartÃ£o possui transaÃ§Ãµes vinculadas.'); return }
       setCartoes(prev => prev.filter(c => c.id !== id))
     }
   }
 
+  // â”€â”€â”€ Edit transaction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingTx) return
@@ -240,86 +223,78 @@ function Dashboard() {
         setTxAll(prev => prev.map(t => t.id === data.id ? data : t))
         setEditingTx(null)
       } else {
-        alert("Erro ao salvar a edição. Tente novamente.")
+        alert('Erro ao salvar a ediÃ§Ã£o. Tente novamente.')
       }
     }
     setSavingTx(false)
   }
 
+  // â”€â”€â”€ Pay bill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const pagarFatura = async (cartaoId: string, itens: Transacao[]) => {
     const cartao = cartoes.find(c => c.id === cartaoId)
     const total = itens.reduce((a, t) => a + t.valor, 0)
-    if (!confirm(`Confirmar pagamento da fatura ${cartao?.nome_cartao} de ${fmt(total)}?\n\nUma transação PIX/débito será criada no valor total.`)) return
+    if (!confirm(`Confirmar pagamento da fatura ${cartao?.nome_cartao} de ${fmt(total)}?\n\nUma transaÃ§Ã£o PIX/dÃ©bito serÃ¡ criada no valor total.`)) return
     setPagandoFatura(cartaoId)
     const client = getSupabase()
     if (client) {
       const diaVenc = cartao?.dia_vencimento || 1
       const hoje = `${year}-${String(month + 1).padStart(2, '0')}-${String(diaVenc).padStart(2, '0')}`
-      // 1. Registrar pagamento como PIX/débito (sai do banco)
-      await client.from('transacoes').insert({
-        phone, tipo: 'gasto', valor: total,
-        categoria: 'Transferência',
-        descricao: `Pagamento fatura ${cartao?.nome_cartao}`,
-        data: hoje, cartao_id: null,
-        criado_em: new Date().toISOString()
-      })
-      // 2. Marcar faturas das parcelas como pagas
+      await client.from('transacoes').insert({ phone, tipo: 'gasto', valor: total, categoria: 'TransferÃªncia', descricao: `Pagamento fatura ${cartao?.nome_cartao}`, data: hoje, cartao_id: null, criado_em: new Date().toISOString() })
       const parcelas = itens.filter(t => t.tipo === 'parcela' && t.compra_parcelada_id)
       for (const p of parcelas) {
-        await client.from('faturas').update({ status: 'pago' })
-          .eq('compra_parcelada_id', p.compra_parcelada_id!)
-          .eq('vencimento', p.data)
+        await client.from('faturas').update({ status: 'pago' }).eq('compra_parcelada_id', p.compra_parcelada_id!).eq('vencimento', p.data)
       }
       await fetchData()
     }
     setPagandoFatura(null)
   }
 
-  // ─── Derived ──────────────────────────────────────────────────────────────
-  // Detectar cartões com fatura já paga no ciclo atual — baseado no DB, funciona em qualquer dispositivo
+  // â”€â”€â”€ CSV Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const exportCSV = () => {
+    const rows = [['Data', 'Tipo', 'Categoria', 'DescriÃ§Ã£o', 'Valor'], ...filteredTx.map(t => [t.data, t.tipo, t.categoria, t.descricao, t.valor.toFixed(2).replace('.', ',')])]
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(';')).join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `transacoes-${MONTHS_PT[month]}-${year}.csv`; a.click()
+  }
+
+  // â”€â”€â”€ Derived data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const paidCartaoIds = new Set<string>()
   txAll.forEach(t => {
-    if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'Transferência' && t.descricao?.startsWith('Pagamento fatura ')) {
+    if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'TransferÃªncia' && t.descricao?.startsWith('Pagamento fatura ')) {
       const nome = t.descricao.replace('Pagamento fatura ', '')
       const cartao = cartoes.find(c => c.nome_cartao === nome)
       if (cartao) paidCartaoIds.add(cartao.id)
     }
   })
 
-  // Separação por método de pagamento (todos por ciclo de fatura)
-  const gastosDebit    = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)
-  const gastosCredit   = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id && !paidCartaoIds.has(t.cartao_id!))
+  const gastosDebit = txAll.filter(t => t.tipo === 'gasto' && !t.cartao_id)
+  const gastosCredit = txAll.filter(t => t.tipo === 'gasto' && !!t.cartao_id && !paidCartaoIds.has(t.cartao_id!))
   const parcelasCartao = txAll.filter(t => t.tipo === 'parcela' && !!t.cartao_id && !paidCartaoIds.has(t.cartao_id!))
   const parcelasDebito = txAll.filter(t => t.tipo === 'parcela' && !t.cartao_id)
-  const receitas       = txAll.filter(t => t.tipo === 'receita')
+  const receitas = txAll.filter(t => t.tipo === 'receita')
 
-  const totalDebit      = gastosDebit.reduce((a, t) => a + t.valor, 0)
+  const totalDebit = gastosDebit.reduce((a, t) => a + t.valor, 0)
   const totalParcDebito = parcelasDebito.reduce((a, t) => a + t.valor, 0)
-  // Modelo caixa: Total Gastos = só o que sai do banco (débito/PIX + financiamentos sem cartão)
   const totalG = totalDebit + totalParcDebito
   const totalR = receitas.reduce((a, t) => a + t.valor, 0)
-  // Fatura = crédito avulso + parcelas no cartão do ciclo deste mês
   const totalCredit = gastosCredit.reduce((a, t) => a + t.valor, 0) + parcelasCartao.reduce((a, t) => a + t.valor, 0)
-
-  // Saldo real = receitas menos o que efetivamente saiu do banco (exclui crédito)
   const saldoReal = totalR - totalDebit - totalParcDebito
-  const saldo = totalR - totalG - totalCredit // comprometido (inclui fatura pendente)
+  const saldo = totalR - totalG - totalCredit
 
   const pGastos = txPrev.filter(t => (t.tipo === 'gasto' && !t.cartao_id) || (t.tipo === 'parcela' && !t.cartao_id)).reduce((a, t) => a + t.valor, 0)
   const pReceitas = txPrev.filter(t => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0)
   const pct = (now: number, prev: number) => prev === 0 ? null : Math.round((now - prev) / prev * 100)
   const pctG = pct(totalG, pGastos), pctR = pct(totalR, pReceitas)
 
-  // Category map — inclui todos os gastos/parcelas para visão de onde gastou
   const catMap = useMemo(() => {
     const m: Record<string, number> = {}
-    txAll.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela')
-      .forEach(t => { m[t.categoria] = (m[t.categoria] || 0) + t.valor })
+    txAll.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela').forEach(t => { m[t.categoria] = (m[t.categoria] || 0) + t.valor })
     return m
   }, [txAll])
+
   const pieData = Object.entries(catMap).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }))
 
-  // Daily map — parcelas tratadas como gasto (competência)
   const areaData = useMemo(() => {
     const m: Record<string, { gastos: number; receitas: number; acumulado?: number }> = {}
     txAll.forEach(t => {
@@ -334,7 +309,6 @@ function Dashboard() {
     })
   }, [txAll])
 
-  // Forecast — só faz sentido para o mês atual
   const _today = new Date()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const isCurrentMonthYear = month === _today.getMonth() && year === _today.getFullYear()
@@ -343,57 +317,38 @@ function Dashboard() {
   const forecastTotal = isCurrentMonthYear ? avgDailySpend * daysInMonth : totalG
   const forecastRemaining = forecastTotal - totalG
 
-  // Day-of-week heatmap — inclui parcelas
   const dowData = useMemo(() => {
     const m = Array(7).fill(0)
-    txAll.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela')
-      .forEach(t => { const d = new Date(t.data + 'T12:00:00'); m[d.getDay()] += t.valor })
+    txAll.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela').forEach(t => { const d = new Date(t.data + 'T12:00:00'); m[d.getDay()] += t.valor })
     const max = Math.max(...m, 1)
     return WEEK_DAYS.map((label, i) => ({ label, value: m[i], pct: m[i] / max }))
   }, [txAll])
 
-  // Annual data — inclui parcelas como gasto
   const annualData = useMemo(() => {
-    // Detectar (cartao_id, mês) com fatura paga no ano — baseado no DB
     const paidAnnualBills = new Set<string>()
     txYear.forEach(t => {
-      if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'Transferência' && t.descricao?.startsWith('Pagamento fatura ')) {
+      if (t.tipo === 'gasto' && !t.cartao_id && t.categoria === 'TransferÃªncia' && t.descricao?.startsWith('Pagamento fatura ')) {
         const nome = t.descricao.replace('Pagamento fatura ', '')
         const cartao = cartoes.find(c => c.nome_cartao === nome)
-        if (cartao) {
-          const mo = new Date(t.data + 'T12:00:00').getMonth()
-          paidAnnualBills.add(`${cartao.id}-${mo}`)
-        }
+        if (cartao) { const mo = new Date(t.data + 'T12:00:00').getMonth(); paidAnnualBills.add(`${cartao.id}-${mo}`) }
       }
     })
-
     const m: Record<number, { gastos: number; receitas: number }> = {}
     for (let i = 0; i < 12; i++) m[i] = { gastos: 0, receitas: 0 }
     txYear.forEach(t => {
       let mo = new Date(t.data + 'T12:00:00').getMonth()
-
-      // Aplicar regra de fechamento do cartão de crédito
       if (t.tipo === 'gasto' && t.cartao_id) {
         const card = cartoes.find(c => c.id === t.cartao_id)
-        if (card) {
-          const buyDay = new Date(t.data + 'T12:00:00').getDate()
-          if (buyDay >= card.dia_fechamento) mo = mo === 11 ? 0 : mo + 1
-        }
-        // Fatura deste cartão neste mês já foi paga — não duplicar com o crédito
+        if (card) { const buyDay = new Date(t.data + 'T12:00:00').getDate(); if (buyDay >= card.dia_fechamento) mo = mo === 11 ? 0 : mo + 1 }
         if (paidAnnualBills.has(`${t.cartao_id}-${mo}`)) return
       }
-
-      if (t.tipo === 'parcela' && t.cartao_id) {
-        if (paidAnnualBills.has(`${t.cartao_id}-${mo}`)) return
-      }
-
+      if (t.tipo === 'parcela' && t.cartao_id && paidAnnualBills.has(`${t.cartao_id}-${mo}`)) return
       if (t.tipo === 'gasto' || t.tipo === 'parcela') m[mo].gastos += t.valor
       else if (t.tipo === 'receita') m[mo].receitas += t.valor
     })
     return MONTHS_S.map((name, i) => ({ name, gastos: m[i].gastos, receitas: m[i].receitas, saldo: m[i].receitas - m[i].gastos }))
   }, [txYear, cartoes])
 
-  // Parcelas ativas — agora vem direto da tabela compras_parceladas
   const parcelasAtivas = useMemo(() => {
     return comprasParceladas.map(p => {
       const start = new Date(p.data_inicio + 'T12:00:00')
@@ -404,7 +359,6 @@ function Dashboard() {
     }).filter(p => p.restantes > 0)
   }, [comprasParceladas])
 
-  // Filtered transactions — excluir crédito (aparecem só em Detalhes da Fatura e Parcelas Ativas)
   const filteredTx = useMemo(() => {
     let tx = txAll.filter(t => !t.cartao_id)
     if (fType !== 'all') tx = tx.filter(t => t.tipo === fType)
@@ -418,41 +372,32 @@ function Dashboard() {
   }, [txAll, fType, fCat, fMin, fMax, fStart, fEnd, search])
 
   const activeFilters = [fType !== 'all', fCat !== 'all', !!fMin, !!fMax, !!fStart, !!fEnd].filter(Boolean).length
-
-  // CSV Export
-  const exportCSV = () => {
-    const rows = [['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'], ...filteredTx.map(t => [t.data, t.tipo, t.categoria, t.descricao, t.valor.toFixed(2).replace('.', ',')])]
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(';')).join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `transacoes-${MONTHS_PT[month]}-${year}.csv`; a.click()
-  }
-
-  const years = [year - 1, year, year + 1]
   const cats = Object.keys(CAT)
+  const years = [year - 1, year, year + 1]
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: 0 }}>
+      {/* Background blobs */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
-        <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '60%', height: '60%', background: 'radial-gradient(circle,rgba(99,102,241,0.06) 0%,transparent 70%)', borderRadius: '50%' }} />
-        <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '60%', height: '60%', background: 'radial-gradient(circle,rgba(139,92,246,0.05) 0%,transparent 70%)', borderRadius: '50%' }} />
+        <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '60%', height: '60%', background: 'radial-gradient(circle,rgba(0,191,165,0.06) 0%,transparent 70%)', borderRadius: '50%' }} />
+        <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '60%', height: '60%', background: 'radial-gradient(circle,rgba(0,230,118,0.05) 0%,transparent 70%)', borderRadius: '50%' }} />
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 1280, margin: '0 auto', padding: '28px 24px' }} className="mobile-pad">
         {/* Header */}
         <header className="dash-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(99,102,241,0.4)' }}>
-              <Wallet size={22} color="white" />
+            <div style={{ width: 48, height: 48, borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 24px rgba(16,185,129,0.35)' }}>
+              <img src="/logo.png" alt="GestorZap" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.35rem', fontWeight: 800, background: 'linear-gradient(135deg,#f1f5f9,#a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Gestor Financeiro</h1>
+              <h1 style={{ fontSize: '1.35rem', fontWeight: 800, background: 'linear-gradient(135deg,#f1f5f9,#69f0ae)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Gestor Financeiro</h1>
               <p style={{ fontSize: '0.76rem', color: 'var(--text2)', marginTop: 1 }}>Dashboard pessoal via WhatsApp</p>
             </div>
           </div>
           <div className="dash-header-controls" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {phone && <span style={{ fontSize: '0.75rem', color: 'var(--text2)', padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>📱 +{phone}</span>}
+            {phone && <span style={{ fontSize: '0.75rem', color: 'var(--text2)', padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>ðŸ“± +{phone}</span>}
             <select className="input-field" value={month} onChange={e => setMonth(Number(e.target.value))}>
               {MONTHS_S.map((m, i) => <option key={i} value={i}>{m}</option>)}
             </select>
@@ -465,22 +410,42 @@ function Dashboard() {
             </button>
           </div>
         </header>
+        {/* Subscription warning banner */}
+        {phone && (() => {
+          const now = Date.now()
+          const expMs = userExpiracao ? new Date(userExpiracao).getTime() : null
+          const daysLeft = expMs ? Math.floor((expMs - now) / 86400000) : null
+          const isExpired = userStatus === 'inativo' || (expMs !== null && expMs < now)
+          const isExpiringSoon = !isExpired && daysLeft !== null && daysLeft <= 5
+          const salesUrl = process.env.NEXT_PUBLIC_SALES_PAGE_URL || '#'
+          if (!isExpired && !isExpiringSoon) return null
+          return (
+            <div style={{ marginBottom: 20, padding: '12px 18px', borderRadius: 12, background: isExpired ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${isExpired ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <AlertTriangle size={16} color={isExpired ? '#ef4444' : '#f59e0b'} />
+                <span style={{ fontSize: '0.82rem', color: isExpired ? '#f87171' : '#fbbf24', fontWeight: 600 }}>
+                  {isExpired ? 'âš ï¸ Sua assinatura estÃ¡ inativa. Renove para continuar usando o GestorZap.' : `â³ Sua assinatura expira em ${daysLeft} dia${daysLeft !== 1 ? 's' : ''}. Renove para nÃ£o perder o acesso.`}
+                </span>
+              </div>
+              <a href={salesUrl} target="_blank" rel="noreferrer" style={{ padding: '7px 16px', borderRadius: 8, background: isExpired ? '#ef4444' : '#f59e0b', color: 'white', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                Renovar agora â€” R$29,90/mÃªs
+              </a>
+            </div>
+          )
+        })()}
 
+        {/* Auth states */}
         {authError === 'token_required' || (!token && !loading) ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <span style={{ fontSize: '2rem' }}>🔒</span>
-            </div>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}>ðŸ”’</span></div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Acesso Restrito</h2>
-            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>Este dashboard só pode ser acessado pelo link enviado no seu WhatsApp.</p>
+            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>Este dashboard sÃ³ pode ser acessado pelo link enviado no seu WhatsApp.</p>
           </div>
         ) : authError === 'token_invalido' ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <span style={{ fontSize: '2rem' }}>❌</span>
-            </div>
-            <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Token Inválido</h2>
-            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>O link de acesso não é válido ou expirou. Peça um novo link pelo WhatsApp.</p>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><span style={{ fontSize: '2rem' }}>âŒ</span></div>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Token InvÃ¡lido</h2>
+            <p style={{ color: 'var(--text2)', fontSize: '0.9rem' }}>O link de acesso nÃ£o Ã© vÃ¡lido ou expirou. PeÃ§a um novo link pelo WhatsApp.</p>
           </div>
         ) : loading && !phone ? (
           <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text2)' }}>Carregando...</div>
@@ -488,22 +453,22 @@ function Dashboard() {
           <div>
             {/* Month label */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                <Calendar size={12} color="#a78bfa" />
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#a78bfa' }}>{MONTHS_PT[month]} {year}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20, background: 'rgba(0,230,118,0.1)', border: '1px solid rgba(0,230,118,0.15)' }}>
+                <Calendar size={12} color="#69f0ae" />
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#69f0ae' }}>{MONTHS_PT[month]} {year}</span>
               </div>
-              <span style={{ color: 'var(--text3)', fontSize: '0.78rem' }}>{txAll.length} transações</span>
+              <span style={{ color: 'var(--text3)', fontSize: '0.78rem' }}>{txAll.length} transaÃ§Ãµes</span>
             </div>
 
-            {/* Summary Cards */}
+            {/* Summary metric cards */}
             <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 16 }}>
-              <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastosDebit.length + parcelasDebito.length} transações no débito/PIX`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
-              <MCard label="Total Receitas" value={fmt(totalR)} sub={`${receitas.length} transações`} icon={<ArrowUpCircle size={18} />} color="#10b981" grad="rgba(16,185,129,0.1)" pct={pctR} />
-              <MCard label="Saldo Real" value={fmt(saldoReal)} sub="Débito/PIX (crédito não incluído)" icon={saldoReal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldoReal >= 0 ? '#10b981' : '#ef4444'} grad={saldoReal >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
-              <MCard label="Crédito a Pagar" value={fmt(totalCredit)} sub={(gastosCredit.length + parcelasCartao.length) > 0 ? `${gastosCredit.length + parcelasCartao.length} lançamento${(gastosCredit.length + parcelasCartao.length) > 1 ? 's' : ''} na fatura` : 'Nenhum lançamento na fatura'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
+              <MCard label="Total Gastos" value={fmt(totalG)} sub={`${gastosDebit.length + parcelasDebito.length} transaÃ§Ãµes no dÃ©bito/PIX`} icon={<ArrowDownCircle size={18} />} color="#ef4444" grad="rgba(239,68,68,0.1)" pct={pctG} pctInvert />
+              <MCard label="Total Receitas" value={fmt(totalR)} sub={`${receitas.length} transaÃ§Ãµes`} icon={<ArrowUpCircle size={18} />} color="#10b981" grad="rgba(16,185,129,0.1)" pct={pctR} />
+              <MCard label="Saldo Real" value={fmt(saldoReal)} sub="DÃ©bito/PIX (crÃ©dito nÃ£o incluÃ­do)" icon={saldoReal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} color={saldoReal >= 0 ? '#10b981' : '#ef4444'} grad={saldoReal >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'} highlight />
+              <MCard label="CrÃ©dito a Pagar" value={fmt(totalCredit)} sub={(gastosCredit.length + parcelasCartao.length) > 0 ? `${gastosCredit.length + parcelasCartao.length} lanÃ§amento${(gastosCredit.length + parcelasCartao.length) > 1 ? 's' : ''} na fatura` : 'Nenhum lanÃ§amento na fatura'} icon={<CreditCard size={18} />} color="#f59e0b" grad="rgba(245,158,11,0.1)" />
             </div>
 
-            {/* Detalhe Crédito a Pagar */}
+            {/* Credit detail */}
             {totalCredit > 0 && (() => {
               const itens = [...gastosCredit, ...parcelasCartao]
               const porCartao = cartoes.reduce<Record<string, { id: string; nome: string; itens: Transacao[] }>>((acc, c) => {
@@ -519,7 +484,7 @@ function Dashboard() {
                   {grupos.map((g, gi) => (
                     <div key={g.id} style={{ marginBottom: gi < grupos.length - 1 ? 16 : 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}>💳 {g.nome}</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}>ðŸ’³ {g.nome}</span>
                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b' }}>{fmt(g.itens.reduce((a, t) => a + t.valor, 0))}</span>
                       </div>
                       {g.itens.map(t => (
@@ -529,12 +494,8 @@ function Dashboard() {
                           <span style={{ color: '#ef4444', fontWeight: 600, flexShrink: 0 }}>{fmt(t.valor)}</span>
                         </div>
                       ))}
-                      <button
-                        onClick={() => pagarFatura(g.id, g.itens)}
-                        disabled={pagandoFatura === g.id}
-                        style={{ marginTop: 10, width: '100%', padding: '8px 0', borderRadius: 8, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.08)', color: '#10b981', fontSize: '0.75rem', fontWeight: 700, cursor: pagandoFatura === g.id ? 'not-allowed' : 'pointer', opacity: pagandoFatura === g.id ? 0.6 : 1, fontFamily: 'inherit' }}
-                      >
-                        {pagandoFatura === g.id ? 'Registrando...' : `✓ Paguei a fatura do ${g.nome}`}
+                      <button onClick={() => pagarFatura(g.id, g.itens)} disabled={pagandoFatura === g.id} style={{ marginTop: 10, width: '100%', padding: '8px 0', borderRadius: 8, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.08)', color: '#10b981', fontSize: '0.75rem', fontWeight: 700, cursor: pagandoFatura === g.id ? 'not-allowed' : 'pointer', opacity: pagandoFatura === g.id ? 0.6 : 1, fontFamily: 'inherit' }}>
+                        {pagandoFatura === g.id ? 'Registrando...' : `âœ“ Paguei a fatura do ${g.nome}`}
                       </button>
                     </div>
                   ))}
@@ -542,535 +503,60 @@ function Dashboard() {
               )
             })()}
 
-            {/* Insights row */}
+            {/* Insights */}
             {txAll.length > 0 && (
               <div className="insight-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 10, marginBottom: 20 }}>
-                {isCurrentMonthYear && <ICard emoji="🔮" title="Previsão do mês" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />}
-                <ICard emoji="📈" title="Média diária" value={fmt(avgDailySpend)} sub="de gastos por dia" color="#ef4444" />
-                <ICard emoji="💰" title="Saldo comprometido" value={fmt(saldo)} sub={saldo >= 0 ? 'Incluindo crédito pendente' : 'Atenção ao crédito!'} color={saldo >= 0 ? '#10b981' : '#ef4444'} />
+                {isCurrentMonthYear && <ICard emoji="ðŸ”®" title="PrevisÃ£o do mÃªs" value={fmt(forecastTotal)} sub={`Ainda: ${fmt(forecastRemaining)}`} color="#f59e0b" />}
+                <ICard emoji="ðŸ“ˆ" title="MÃ©dia diÃ¡ria" value={fmt(avgDailySpend)} sub="de gastos por dia" color="#ef4444" />
+                <ICard emoji="ðŸ’°" title="Saldo comprometido" value={fmt(saldo)} sub={saldo >= 0 ? 'Incluindo crÃ©dito pendente' : 'AtenÃ§Ã£o ao crÃ©dito!'} color={saldo >= 0 ? '#10b981' : '#ef4444'} />
               </div>
             )}
 
-            {/* Tabs */}
+            {/* Tab bar */}
             <div className="tab-bar" style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'rgba(255,255,255,0.04)', padding: 4, borderRadius: 12, width: 'fit-content', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
               {(['transactions', 'cards', 'budget', 'annual', 'overview'] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  style={{
-                    padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s',
-                    background: tab === t ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'transparent',
-                    color: tab === t ? 'white' : '#94a3b8'
-                  }}>
-                  {t === 'transactions' ? '🧾 Transações' : t === 'cards' ? '💳 Cartões' : t === 'budget' ? '🎯 Orçamento' : t === 'annual' ? '📅 Anual' : '📊 Visão Geral'}
+                <button key={t} onClick={() => setTab(t)} style={{ padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s', background: tab === t ? 'linear-gradient(135deg,#00bfa5,#00e676)' : 'transparent', color: tab === t ? 'white' : '#94a3b8' }}>
+                  {t === 'transactions' ? 'ðŸ§¾ TransaÃ§Ãµes' : t === 'cards' ? 'ðŸ’³ CartÃµes' : t === 'budget' ? 'ðŸŽ¯ OrÃ§amento' : t === 'annual' ? 'ðŸ“… Anual' : 'ðŸ“Š VisÃ£o Geral'}
                 </button>
               ))}
             </div>
 
-            {/* ─── OVERVIEW TAB ─────────────────────────────────────────── */}
+            {/* Tab content */}
             {tab === 'overview' && (
-              txAll.length === 0 ? <Empty /> : (
-                <div>
-                  {/* Area + Pie */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))', gap: 14, marginBottom: 14 }}>
-                    <div className="glass" style={{ padding: 24 }}>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>📈 Evolução Diária</h3>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <AreaChart data={areaData}>
-                          <defs>
-                            <linearGradient id="gG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.25} /><stop offset="95%" stopColor="#ef4444" stopOpacity={0} /></linearGradient>
-                            <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.25} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                          <XAxis dataKey="dia" tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} />
-                          <Tooltip content={<CT />} />
-                          <Legend formatter={v => <span style={{ color: '#94a3b8', fontSize: '0.76rem' }}>{v}</span>} />
-                          <Area type="monotone" dataKey="gastos" stroke="#ef4444" strokeWidth={2} fill="url(#gG)" name="Gastos" dot={false} />
-                          <Area type="monotone" dataKey="receitas" stroke="#10b981" strokeWidth={2} fill="url(#gR)" name="Receitas" dot={false} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="glass" style={{ padding: 24 }}>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>💸 Gastos por Categoria</h3>
-                      {pieData.length > 0 ? (
-                        <>
-                          <ResponsiveContainer width="100%" height={170}>
-                            <PieChart>
-                              <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} dataKey="value" paddingAngle={3}>
-                                {pieData.map((e, i) => <Cell key={i} fill={cc(e.name)} stroke="transparent" />)}
-                              </Pie>
-                              <Tooltip formatter={(v: any) => fmt(v ?? 0)} labelFormatter={(l: any) => l} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                            {pieData.slice(0, 6).map((e, i) => (
-                              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: cc(e.name) }} />
-                                  <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}>{e.name}</span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ width: 70, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-                                    <div style={{ height: '100%', width: `${e.value / totalG * 100}%`, background: cc(e.name), borderRadius: 2 }} />
-                                  </div>
-                                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)', minWidth: 65, textAlign: 'right' }}>{fmt(e.value)}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      ) : <Empty msg="Nenhum gasto" />}
-                    </div>
-                  </div>
-
-                  {/* Cumulative + Heatmap */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))', gap: 14, marginBottom: 14 }}>
-                    <div className="glass" style={{ padding: 24 }}>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>💰 Saldo Acumulado</h3>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <LineChart data={areaData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                          <XAxis dataKey="dia" tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} />
-                          <Tooltip content={<CT />} />
-                          <Line type="monotone" dataKey="acumulado" stroke="#6366f1" strokeWidth={2.5} dot={false} name="Saldo" />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="glass" style={{ padding: 24 }}>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>🗓️ Gastos por Dia da Semana</h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-                        {dowData.map((d, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text2)', minWidth: 28 }}>{d.label}</span>
-                            <div style={{ flex: 1, height: 20, borderRadius: 6, background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${d.pct * 100}%`, borderRadius: 6, background: `rgba(99,102,241,${0.3 + d.pct * 0.7})`, transition: 'width 0.6s ease', display: 'flex', alignItems: 'center', paddingLeft: 6 }}>
-                                {d.value > 0 && <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.8)', fontWeight: 700, whiteSpace: 'nowrap' }}>{fmt(d.value)}</span>}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bar ranking */}
-                  {pieData.length > 0 && (
-                    <div className="glass" style={{ padding: 24 }}>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>🏅 Ranking por Categoria</h3>
-                      <ResponsiveContainer width="100%" height={Math.max(140, pieData.length * 40)}>
-                        <BarChart data={pieData} layout="vertical" margin={{ left: 0, right: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
-                          <XAxis type="number" tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} />
-                          <YAxis dataKey="name" type="category" tick={{ fill: '#94a3b8', fontSize: 12 }} width={100} axisLine={false} tickLine={false} />
-                          <Tooltip formatter={(v: any) => fmt(v ?? 0)} />
-                          <Bar dataKey="value" radius={[0, 8, 8, 0]}>
-                            {pieData.map((e, i) => <Cell key={i} fill={cc(e.name)} />)}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-
-                  {/* Forecast banner */}
-                  <div className="glass" style={{ padding: 20, marginTop: 14, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Zap size={18} color="#f59e0b" />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{isCurrentMonthYear ? 'Previsão de fechamento' : 'Total do mês'}</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f59e0b' }}>{fmt(forecastTotal)}</div>
-                      </div>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text2)', marginBottom: 6 }}>
-                        <span>{isCurrentMonthYear ? `Gasto até hoje: ${fmt(totalG)}` : `Total gasto: ${fmt(totalG)}`}</span>
-                        <span>{isCurrentMonthYear ? `Dia ${today}/${daysInMonth}` : 'Mês encerrado'}</span>
-                      </div>
-                      <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${Math.min(today / daysInMonth * 100, 100)}%`, borderRadius: 4, background: 'linear-gradient(90deg,#6366f1,#f59e0b)' }} />
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>{isCurrentMonthYear ? 'Restante estimado' : 'Saldo do mês'}</div>
-                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: isCurrentMonthYear ? '#ef4444' : saldo >= 0 ? '#10b981' : '#ef4444' }}>{fmt(isCurrentMonthYear ? forecastRemaining : saldo)}</div>
-                    </div>
-                  </div>
-                </div>
-              )
+              <TabOverview txAll={txAll} areaData={areaData} pieData={pieData} dowData={dowData} totalG={totalG} saldo={saldo} isCurrentMonthYear={isCurrentMonthYear} forecastTotal={forecastTotal} forecastRemaining={forecastRemaining} today={today} daysInMonth={daysInMonth} />
             )}
-
-            {/* ─── TRANSACTIONS TAB ─────────────────────────────────────── */}
             {tab === 'transactions' && (
-              <div className="glass" style={{ padding: 24 }}>
-                {/* Filter bar */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>🧾 Transações — {MONTHS_PT[month]}</h3>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
-                      <Search size={13} color="#94a3b8" />
-                      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: '0.82rem', fontFamily: 'inherit', width: 140 }} />
-                    </div>
-                    <button className="btn-ghost" onClick={() => setShowFilters(v => !v)} style={{ position: 'relative' }}>
-                      <Filter size={13} /> Filtros
-                      {activeFilters > 0 && <span style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: '#6366f1', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{activeFilters}</span>}
-                    </button>
-                    <button className="btn-ghost" onClick={exportCSV}><Download size={13} /> CSV</button>
-                  </div>
-                </div>
-
-                {/* Filters panel */}
-                {showFilters && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', marginBottom: 16 }}>
-                    <div>
-                      <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>TIPO</label>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {(['all', 'gasto', 'receita', 'parcela'] as const).map(t => (
-                          <button key={t} onClick={() => setFType(t)}
-                            style={{
-                              padding: '5px 10px', borderRadius: 8, border: '1px solid', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
-                              background: fType === t ? 'rgba(99,102,241,0.2)' : 'transparent',
-                              borderColor: fType === t ? 'rgba(99,102,241,0.5)' : 'var(--border)',
-                              color: fType === t ? '#a78bfa' : 'var(--text2)'
-                            }}>
-                            {t === 'all' ? 'Todos' : t === 'gasto' ? 'Gastos' : t === 'receita' ? 'Receitas' : 'Parcelas'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>CATEGORIA</label>
-                      <select className="input-field" value={fCat} onChange={e => setFCat(e.target.value)} style={{ width: '100%', fontSize: '0.8rem' }}>
-                        <option value="all">Todas</option>
-                        {cats.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>VALOR MÍN</label>
-                      <input className="input-field" type="number" value={fMin} onChange={e => setFMin(e.target.value)} placeholder="R$ 0" style={{ width: '100%', fontSize: '0.8rem' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>VALOR MÁX</label>
-                      <input className="input-field" type="number" value={fMax} onChange={e => setFMax(e.target.value)} placeholder="R$ 9999" style={{ width: '100%', fontSize: '0.8rem' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>DATA INÍCIO</label>
-                      <input className="input-field" type="date" value={fStart} onChange={e => setFStart(e.target.value)} style={{ width: '100%', fontSize: '0.8rem' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>DATA FIM</label>
-                      <input className="input-field" type="date" value={fEnd} onChange={e => setFEnd(e.target.value)} style={{ width: '100%', fontSize: '0.8rem' }} />
-                    </div>
-                    {activeFilters > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                        <button className="btn-ghost" onClick={() => { setFType('all'); setFCat('all'); setFMin(''); setFMax(''); setFStart(''); setFEnd('') }} style={{ width: '100%', justifyContent: 'center' }}>
-                          <X size={13} /> Limpar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {filteredTx.length === 0 ? <Empty /> : (
-                  <>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      {filteredTx.map((t, i) => <TRow key={t.id} t={t} i={i} cartoes={cartoes} onEdit={() => { setEditingTx(t); setEditingTxOriginalData(t.data) }} />)}
-                    </div>
-                    <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}><strong style={{ color: 'var(--text)' }}>{filteredTx.length}</strong> transações</span>
-                      <div style={{ display: 'flex', gap: 16, fontSize: '0.78rem' }}>
-                        <span style={{ color: '#ef4444' }}>Gastos: <strong>{fmt(filteredTx.filter(t => t.tipo === 'gasto' || t.tipo === 'parcela').reduce((a, t) => a + t.valor, 0))}</strong></span>
-                        <span style={{ color: '#10b981' }}>Receitas: <strong>{fmt(filteredTx.filter(t => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0))}</strong></span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              <TabTransactions filteredTx={filteredTx} cartoes={cartoes} month={month} cats={cats} fType={fType} fCat={fCat} fMin={fMin} fMax={fMax} fStart={fStart} fEnd={fEnd} showFilters={showFilters} search={search} activeFilters={activeFilters} setFType={setFType} setFCat={setFCat} setFMin={setFMin} setFMax={setFMax} setFStart={setFStart} setFEnd={setFEnd} setShowFilters={setShowFilters} setSearch={setSearch} exportCSV={exportCSV} onEdit={t => { setEditingTx(t); setEditingTxOriginalData(t.data) }} />
             )}
-
-            {/* ─── ANNUAL TAB ───────────────────────────────────────────── */}
             {tab === 'annual' && (
-              <div>
-                <div className="glass" style={{ padding: 24, marginBottom: 14 }}>
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 18 }}>📅 Visão Anual — {year}</h3>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={annualData} margin={{ bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                      <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} />
-                      <Tooltip content={<CT />} />
-                      <Legend formatter={v => <span style={{ color: '#94a3b8', fontSize: '0.76rem' }}>{v}</span>} />
-                      <Bar dataKey="gastos" name="Gastos" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="receitas" name="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="glass" style={{ padding: 24 }}>
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 14 }}>📊 Tabela Mensal</h3>
-                  <div className="table-wrap" style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                          {['Mês', 'Gastos', 'Receitas', 'Saldo'].map(h => (
-                            <th key={h} style={{ padding: '8px 12px', textAlign: h === 'Mês' ? 'left' : 'right', color: 'var(--text3)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {annualData.map((row, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                            <td style={{ padding: '10px 12px', color: i === month ? '#a78bfa' : 'var(--text)', fontWeight: i === month ? 700 : 400 }}>{MONTHS_PT[i]}</td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>{fmt(row.gastos)}</td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', color: '#10b981', fontWeight: 600 }}>{fmt(row.receitas)}</td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', color: row.saldo >= 0 ? '#10b981' : '#ef4444', fontWeight: 700 }}>{fmt(row.saldo)}</td>
-                          </tr>
-                        ))}
-                        <tr style={{ borderTop: '2px solid var(--border)', background: 'rgba(99,102,241,0.06)' }}>
-                          <td style={{ padding: '10px 12px', color: 'var(--text)', fontWeight: 700 }}>TOTAL</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#ef4444', fontWeight: 800 }}>{fmt(annualData.reduce((a, r) => a + r.gastos, 0))}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#10b981', fontWeight: 800 }}>{fmt(annualData.reduce((a, r) => a + r.receitas, 0))}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: 'var(--text)' }}>{fmt(annualData.reduce((a, r) => a + r.saldo, 0))}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
+              <TabAnnual annualData={annualData} year={year} month={month} />
             )}
-
-            {/* ─── BUDGET TAB ───────────────────────────────────────────── */}
             {tab === 'budget' && (
-              <div>
-
-                {/* Parcelas Ativas */}
-                {parcelasAtivas.length > 0 && (
-                  <div className="glass" style={{ padding: 24, marginBottom: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                      <span style={{ fontSize: '1rem' }}>💳</span>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>Parcelas Ativas — {year}</h3>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text3)', marginLeft: 'auto' }}>{parcelasAtivas.length} compra{parcelasAtivas.length > 1 ? 's' : ''} parcelada{parcelasAtivas.length > 1 ? 's' : ''}</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {parcelasAtivas.map((p, i) => {
-                        const restantes = p.total - p.pagas
-                        const pct = p.pagas / p.total * 100
-                        const totalDevido = restantes * p.valorParcela
-                        const done = restantes === 0
-                        return (
-                          <div key={i} style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ width: 30, height: 30, borderRadius: 8, background: `rgba(${h2r(cc(p.categoria))},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cc(p.categoria) }}>{ci(p.categoria)}</div>
-                                <div>
-                                  <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{p.descricao}</div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                    <span style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>{p.categoria} · {fmt(p.valorParcela)}/parcela</span>
-                                    {p.cartao_id && cartoes.find(c => c.id === p.cartao_id) && (
-                                      <span style={{ fontSize: '0.67rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <CreditCard size={10} /> {cartoes.find(c => c.id === p.cartao_id)?.nome_cartao}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: done ? '#10b981' : '#f59e0b' }}>{done ? '✅ Quitado!' : `${restantes} restante${restantes > 1 ? 's' : ''}`}</div>
-                                {!done && <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>Ainda: {fmt(totalDevido)}</div>}
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                                <div style={{ height: '100%', width: `${pct}%`, borderRadius: 3, background: done ? '#10b981' : `linear-gradient(90deg,#6366f1,#a78bfa)`, transition: 'width 0.5s ease' }} />
-                              </div>
-                              <span style={{ fontSize: '0.68rem', color: 'var(--text3)', minWidth: 55, textAlign: 'right' }}>{p.pagas}/{p.total} pagas</span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text2)' }}>Total em parcelas restantes ({year}):</span>
-                      <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ef4444' }}>{fmt(parcelasAtivas.reduce((a, p) => a + (p.total - p.pagas) * p.valorParcela, 0))}</span>
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                  <Target size={16} color="#a78bfa" />
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text2)' }}>Defina metas de orçamento por categoria. Os dados são salvos no seu navegador.</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
-                  {cats.map(cat => {
-                    const spent = catMap[cat] || 0
-                    const budget = budgets[cat] || 0
-                    const pct = budget > 0 ? Math.min(spent / budget * 100, 100) : 0
-                    const over = budget > 0 && spent > budget
-                    return (
-                      <div key={cat} className="glass" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 9, background: `rgba(${h2r(cc(cat))},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cc(cat) }}>{ci(cat)}</div>
-                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text)' }}>{cat}</span>
-                          </div>
-                          {over && <AlertTriangle size={14} color="#f59e0b" />}
-                        </div>
-                        <div style={{ marginBottom: 10 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 6 }}>
-                            <span style={{ color: 'var(--text2)' }}>Gasto: <strong style={{ color: over ? '#ef4444' : 'var(--text)' }}>{fmt(spent)}</strong></span>
-                            {budget > 0 && <span style={{ color: 'var(--text2)' }}>Meta: <strong style={{ color: 'var(--text)' }}>{fmt(budget)}</strong></span>}
-                          </div>
-                          {budget > 0 && (
-                            <>
-                              <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                                <div style={{ height: '100%', width: `${pct}%`, borderRadius: 4, background: over ? 'linear-gradient(90deg,#ef4444,#f87171)' : over ? '#f59e0b' : cc(cat), transition: 'width 0.5s ease' }} />
-                              </div>
-                              <div style={{ fontSize: '0.7rem', color: over ? '#ef4444' : 'var(--text3)', marginTop: 4, textAlign: 'right' }}>
-                                {over ? `Excedeu ${fmt(spent - budget)}` : `Restam ${fmt(budget - spent)} (${(100 - pct).toFixed(0)}%)`}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <input type="number" value={editBudget[cat] ?? ''} onChange={e => setEditBudget(v => ({ ...v, [cat]: e.target.value }))}
-                            placeholder="Defina meta R$" className="input-field" style={{ flex: 1, fontSize: '0.8rem', padding: '7px 10px' }} />
-                          <button className="btn-primary" style={{ padding: '7px 12px', fontSize: '0.8rem' }} onClick={() => { saveBudget(cat, editBudget[cat] ?? ''); setEditBudget(v => ({ ...v, [cat]: '' })) }}>
-                            Salvar
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+              <TabBudget catMap={catMap} totalG={totalG} parcelasAtivas={parcelasAtivas} cartoes={cartoes} budgets={budgets} editBudget={editBudget} setEditBudget={setEditBudget} saveBudget={saveBudget} year={year} />
             )}
-
-            {/* ─── CARDS TAB ────────────────────────────────────────────── */}
             {tab === 'cards' && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20, alignItems: 'start' }}>
-                <div className="glass" style={{ padding: 24 }}>
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Meus Cartões</h3>
-                  {cartoes.length === 0 ? <Empty msg="Nenhum cartão cadastrado" /> : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {cartoes.map((c, idx) => {
-                        // Generate a pseudo-random harmonious color based on the card name
-                        const hues = [250, 320, 200, 280, 150];
-                        const hue = hues[c.nome_cartao.length % hues.length];
-                        const bg1 = `hsl(${hue}, 60%, 25%)`;
-                        const bg2 = `hsl(${hue + 30}, 60%, 15%)`;
-                        const accent = `hsl(${hue + 15}, 80%, 65%)`;
-
-                        return (
-                          <div key={c.id} style={{
-                            position: 'relative',
-                            padding: '20px',
-                            borderRadius: '16px',
-                            background: `linear-gradient(135deg, ${bg1}, ${bg2})`,
-                            boxShadow: '0 10px 30px -10px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)',
-                            border: '1px solid rgba(255,255,255,0.05)',
-                            overflow: 'hidden',
-                            minHeight: '140px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            color: 'white',
-                            fontFamily: 'monospace'
-                          }}>
-                            {/* Decorative background circles */}
-                            <div style={{ position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
-                            <div style={{ position: 'absolute', bottom: -20, left: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'sans-serif' }}>
-                                  {c.nome_cartao}
-                                </div>
-                                <div style={{ width: 36, height: 26, borderRadius: 4, background: 'linear-gradient(135deg, #d4af37 0%, #aa8000 100%)', opacity: 0.8, position: 'relative', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.2)' }}>
-                                  {/* Fake chip lines */}
-                                  <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'rgba(0,0,0,0.2)' }} />
-                                  <div style={{ position: 'absolute', left: '30%', top: 0, bottom: 0, width: 1, background: 'rgba(0,0,0,0.2)' }} />
-                                  <div style={{ position: 'absolute', left: '70%', top: 0, bottom: 0, width: 1, background: 'rgba(0,0,0,0.2)' }} />
-                                </div>
-                              </div>
-                              <button onClick={() => deleteCard(c.id)} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', padding: 6, cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')} title="Excluir Cartão">
-                                <X size={14} />
-                              </button>
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', position: 'relative', zIndex: 1, marginTop: 24 }}>
-                              <div style={{ display: 'flex', gap: 20 }}>
-                                <div>
-                                  <div style={{ fontSize: '0.55rem', opacity: 0.6, letterSpacing: '0.05em', marginBottom: 2 }}>FECHAMENTO</div>
-                                  <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>Dia {String(c.dia_fechamento).padStart(2, '0')}</div>
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: '0.55rem', opacity: 0.6, letterSpacing: '0.05em', marginBottom: 2 }}>VENCIMENTO</div>
-                                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: accent }}>Dia {String(c.dia_vencimento).padStart(2, '0')}</div>
-                                </div>
-                              </div>
-                              <div style={{ opacity: 0.8 }}>
-                                <CreditCard size={28} />
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="glass" style={{ padding: 24 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CreditCard size={16} color="#10b981" /></div>
-                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>Novo Cartão</h3>
-                  </div>
-
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text2)', marginBottom: 20, lineHeight: 1.5 }}>
-                    Cadastre a data de fechamento e vencimento das suas faturas para receber avisos do automáticos no seu WhatsApp para não esquecer de pagar!
-                  </p>
-
-                  <form onSubmit={addCard} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div>
-                      <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>NOME DO CARTÃO (Ex: Nubank)</label>
-                      <input className="input-field" type="text" value={newCard.nome_cartao} onChange={e => setNewCard(v => ({ ...v, nome_cartao: e.target.value }))} placeholder="Nome do cartão" required style={{ width: '100%' }} />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <div>
-                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DIA FECHAMENTO</label>
-                        <input className="input-field" type="number" min="1" max="31" value={newCard.dia_fechamento} onChange={e => setNewCard(v => ({ ...v, dia_fechamento: parseInt(e.target.value) || 1 }))} required style={{ width: '100%' }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DIA VENCIMENTO</label>
-                        <input className="input-field" type="number" min="1" max="31" value={newCard.dia_vencimento} onChange={e => setNewCard(v => ({ ...v, dia_vencimento: parseInt(e.target.value) || 1 }))} required style={{ width: '100%' }} />
-                      </div>
-                    </div>
-                    <button type="submit" disabled={savingCard || !newCard.nome_cartao.trim()} className="btn-primary" style={{ marginTop: 8, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      {savingCard ? <RefreshCw size={16} className="animate-spin" /> : <>+</>}
-                      Adicionar Cartão
-                    </button>
-                  </form>
-                </div>
-              </div>
+              <TabCards cartoes={cartoes} newCard={newCard} savingCard={savingCard} pagandoFatura={pagandoFatura} setNewCard={setNewCard} addCard={addCard} deleteCard={deleteCard} pagarFatura={pagarFatura} gastosCredit={gastosCredit} parcelasCartao={parcelasCartao} paidCartaoIds={paidCartaoIds} />
             )}
           </div>
         )}
       </div>
 
-      {/* Edit Modal */}
+      {/* Edit Transaction Modal */}
       {editingTx && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
           <div className="glass" style={{ width: '100%', maxWidth: 400, padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Editar Transação</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Editar TransaÃ§Ã£o</h3>
               <button onClick={() => setEditingTx(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <form onSubmit={saveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {editingTx.tipo === 'parcela' && (
-                <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', fontSize: '0.75rem', color: '#a78bfa' }}>
-                  ⚠️ Você está editando uma parcela. A fatura correspondente será atualizada automaticamente.
+                <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(0,230,118,0.08)', border: '1px solid rgba(0,230,118,0.15)', fontSize: '0.75rem', color: '#69f0ae' }}>
+                  âš ï¸ VocÃª estÃ¡ editando uma parcela. A fatura correspondente serÃ¡ atualizada automaticamente.
                 </div>
               )}
               <div>
-                <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DESCRIÇÃO</label>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>DESCRIÃ‡ÃƒO</label>
                 <input className="input-field" type="text" value={editingTx.descricao || ''} onChange={e => setEditingTx({ ...editingTx, descricao: e.target.value })} required style={{ width: '100%' }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -1099,16 +585,21 @@ function Dashboard() {
           </div>
         </div>
       )}
-
     </div>
   )
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function Page() {
   return (
-    <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)', flexDirection: 'column', gap: 14 }}><div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Wallet size={20} color="white" /></div><p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Carregando...</p></div>}>
+    <Suspense fallback={
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)', flexDirection: 'column', gap: 14 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#00bfa5,#00e676)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Wallet size={20} color="white" /></div>
+        <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Carregando...</p>
+      </div>
+    }>
       <Dashboard />
     </Suspense>
   )
 }
+

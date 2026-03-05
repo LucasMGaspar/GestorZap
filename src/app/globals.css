@@ -1,24 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --bg: #080c14;
-  --bg2: #0d1220;
-  --card: rgba(255, 255, 255, 0.04);
-  --card-hover: rgba(255, 255, 255, 0.07);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.15);
-  --accent: #6366f1;
-  --accent2: #8b5cf6;
-  --green: #10b981;
-  --green2: #34d399;
+  --bg: #050d10;
+  --bg2: #071218;
+  --card: rgba(0, 230, 118, 0.04);
+  --card-hover: rgba(0, 230, 118, 0.07);
+  --border: rgba(0, 230, 118, 0.08);
+  --border-hover: rgba(0, 230, 118, 0.18);
+  --accent: #00bfa5;
+  --accent2: #00e676;
+  --green: #00e676;
+  --green2: #69f0ae;
   --red: #ef4444;
   --red2: #f87171;
   --yellow: #f59e0b;
-  --blue: #3b82f6;
-  --text: #f1f5f9;
-  --text2: #94a3b8;
-  --text3: #475569;
-  --glow: rgba(99, 102, 241, 0.15);
+  --blue: #00acc1;
+  --text: #f0faf5;
+  --text2: #8fb8a8;
+  --text3: #3d6b58;
+  --glow: rgba(0, 230, 118, 0.15);
+  color-scheme: dark;
 }
 
 *,
@@ -52,12 +53,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.4);
+  background: rgba(0, 191, 165, 0.4);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.7);
+  background: rgba(0, 191, 165, 0.7);
 }
 
 /* Glass card */
@@ -89,7 +90,7 @@ body {
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
+  background: linear-gradient(135deg, #00bfa5, #00e676, #69f0ae);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -109,8 +110,8 @@ body {
 }
 
 .input-field:focus {
-  border-color: rgba(99, 102, 241, 0.6);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: rgba(0, 191, 165, 0.6);
+  box-shadow: 0 0 0 3px rgba(0, 191, 165, 0.1);
 }
 
 .input-field::placeholder {
@@ -121,6 +122,8 @@ body {
 select.input-field {
   cursor: pointer;
   appearance: none;
+  -webkit-appearance: none;
+  background-color: #0d1220;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
@@ -128,11 +131,16 @@ select.input-field {
   color-scheme: dark;
 }
 
+select.input-field option {
+  background-color: #0d1220;
+  color: #f1f5f9;
+}
+
 /* Button */
 .btn-primary {
   padding: 10px 20px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #00bfa5, #00e676);
   border: none;
   color: white;
   font-weight: 600;
@@ -145,7 +153,7 @@ select.input-field {
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 230, 118, 0.35);
 }
 
 .btn-primary:active {
