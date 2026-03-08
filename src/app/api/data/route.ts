@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     // 1. Validate token → get phone
     const { data: usuario, error: uErr } = await supabase
         .from('usuarios')
-        .select('phone, nome')
+        .select('phone, nome, status, data_expiracao')
         .eq('token', token)
         .single()
 
@@ -51,22 +51,28 @@ export async function GET(req: NextRequest) {
     const yearEnd = `${year}-12-31`
 
     // 2. Fetch all data in parallel
-    const [r1, r2, r3, r4] = await Promise.all([
+    const [r1, r2, r3, r4, r5, r6] = await Promise.all([
         supabase.from('transacoes').select('*').eq('phone', phone).gte('data', curStart).lte('data', curEnd).order('data', { ascending: false }),
         supabase.from('transacoes').select('*').eq('phone', phone).gte('data', prevStart).lte('data', prevEnd),
         supabase.from('transacoes').select('*').eq('phone', phone).gte('data', yearStart).lte('data', yearEnd),
         supabase.from('compras_parceladas').select('*').eq('phone', phone).eq('ativa', true).order('criado_em', { ascending: false }),
+        supabase.from('cartoes').select('*').eq('phone', phone).order('nome_cartao', { ascending: true }),
+        supabase.from('budgets').select('*').eq('phone', phone),
     ])
 
     // Update last access (fire and forget)
-    supabase.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('phone', phone)
+    supabase.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('phone', phone).then(() => { })
 
     return NextResponse.json({
         phone,
         nome: usuario.nome,
+        status: usuario.status || 'ativo',
+        data_expiracao: usuario.data_expiracao || null,
         transacoes: r1.data ?? [],
         transacoesPrevMes: r2.data ?? [],
         transacoesAno: r3.data ?? [],
         comprasParceladas: r4.data ?? [],
+        cartoes: r5.data ?? [],
+        budgets: r6.data ?? [],
     })
 }

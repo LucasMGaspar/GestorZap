@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -File \"c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/fix_encoding.ps1\")",
+      "Bash(powershell -File \"c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/fix_encoding2.ps1\")",
+      "Bash(powershell -File \"c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/inspect2.ps1\")",
+      "Bash(powershell -File \"c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/fix_encoding3.ps1\")",
+      "Bash(powershell -File \"c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/fix_final.ps1\")",
+      "Bash(powershell -Command \"& { $path = ''c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/src/components/TabCards.tsx''; $bytes = [System.IO.File]::ReadAllBytes\\($path\\); $c = [System.Text.Encoding]::UTF8.GetString\\($bytes\\); $matches = \\([regex]::Matches\\($c, ''.{0,5}[\\\\x00C0-\\\\x00FF]{2,}.{0,5}''\\)\\); foreach \\($m in $matches\\) { Write-Host \\(''Pos='' + $m.Index + '' Text='' + $m.Value\\) } }\")",
+      "Bash(powershell -File \"c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/fix_tabcards.ps1\")",
+      "Bash(powershell -File \"c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/check_all.ps1\")",
+      "Bash(powershell -File \"c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/fix_remaining.ps1\")",
+      "Bash(powershell -File \"c:/Users/maju2/OneDrive/Desktop/gestorFinanceiro/dashboard/fix_budget_final.ps1\")"
+    ]
+  }
+}

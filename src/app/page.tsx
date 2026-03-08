@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, Suspense, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getSupabase, Transacao, Cartao, CompraParcelada } from '@/lib/supabase'
+import { Transacao, Cartao, CompraParcelada } from '@/lib/supabase'
 import {
   Wallet, RefreshCw, TrendingDown, TrendingUp, ArrowDownCircle, ArrowUpCircle,
   Calendar, CreditCard, X, Edit3, AlertTriangle, Lock, ShieldAlert
@@ -80,11 +80,14 @@ function Dashboard() {
     localStorage.setItem('fin_budgets', JSON.stringify(next))
     if (phone) {
       try {
-        const client = getSupabase()
-        if (client) await client.from('budgets').upsert({ phone, categoria: cat, valor: n }, { onConflict: 'phone,categoria' })
-      } catch { /* fallback localStorage já salvo */ }
+        await fetch(`/api/budgets?token=${token}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categoria: cat, valor: n })
+        })
+      } catch { /* fallback localStorage */ }
     }
-  }, [budgets, phone])
+  }, [budgets, phone, token])
 
   //  Fetch data 
   const fetchData = useCallback(async () => {
@@ -92,43 +95,29 @@ function Dashboard() {
     setLoading(true)
     setAuthError(null)
     try {
-      const client = getSupabase()
-      if (!client) { setLoading(false); return }
+      const res = await fetch(`/api/data?token=${token}&month=${month}&year=${year}`)
+      if (!res.ok) {
+        const err = await res.json()
+        if (err.error === 'token_invalido') setAuthError('token_invalido')
+        setLoading(false)
+        return
+      }
 
-      // Step 1: validate token
-      const { data: userData, error: userErr } = await client
-        .from('usuarios').select('phone, status, data_expiracao').eq('token', token).single()
-      if (userErr || !userData) { setAuthError('token_invalido'); setLoading(false); return }
+      const d = await res.json()
+      setPhone(d.phone)
+      if (d.status) setUserStatus(d.status)
+      if (d.data_expiracao) setUserExpiracao(d.data_expiracao)
 
-      const resolvedPhone = userData.phone
-      setPhone(resolvedPhone)
-      if (userData.status) setUserStatus(userData.status)
-      if (userData.data_expiracao) setUserExpiracao(userData.data_expiracao)
+      const fetchedCards: Cartao[] = d.cartoes || []
+      setCartoes(fetchedCards)
+      setComprasParceladas(d.comprasParceladas || [])
+      setTxYear(d.transacoesAno || [])
 
-      // Step 2: date ranges
+      // Cycle Logic
       const pmMonth = month === 0 ? 11 : month - 1
       const pmYear = month === 0 ? year - 1 : year
-      const prevPmMonth = pmMonth === 0 ? 11 : pmMonth - 1
-      const prevPmYear = pmMonth === 0 ? pmYear - 1 : pmYear
       const [pm, py] = [pmMonth, pmYear]
 
-      const s = `${pmYear}-${String(pmMonth + 1).padStart(2, '0')}-01`
-      const e = new Date(year, month + 1, 0).toISOString().split('T')[0]
-      const ps = `${prevPmYear}-${String(prevPmMonth + 1).padStart(2, '0')}-01`
-      const pe = new Date(py, pm + 1, 0).toISOString().split('T')[0]
-      const ys = `${year}-01-01`, ye = `${year}-12-31`
-
-      const [r1, r2, r3, r4, r5] = await Promise.all([
-        client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', s).lte('data', e).order('data', { ascending: false }),
-        client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', ps).lte('data', pe),
-        client.from('transacoes').select('*').eq('phone', resolvedPhone).gte('data', ys).lte('data', ye),
-        client.from('compras_parceladas').select('*').eq('phone', resolvedPhone).eq('ativa', true).order('criado_em', { ascending: false }),
-        client.from('cartoes').select('*').eq('phone', resolvedPhone).order('nome_cartao', { ascending: true }),
-      ])
-
-      const fetchedCards = r5.data ?? []
-
-      // Credit card cycle logic: determine which month a transaction truly belongs to
       const getRealMonthYear = (t: Transacao, cards: Cartao[]) => {
         const txDate = new Date(t.data + 'T12:00:00')
         const txMo = txDate.getMonth()
@@ -150,22 +139,16 @@ function Dashboard() {
       const processPrevTx = (txs: Transacao[]) =>
         txs.filter(t => { const tgt = getRealMonthYear(t, fetchedCards); return tgt.m === pm && tgt.y === py })
 
-      if (r1.data) setTxAll(processTxByCycle(r1.data))
-      if (r2.data) setTxPrev(processPrevTx(r2.data))
-      if (r3.data) setTxYear(r3.data)
-      setComprasParceladas(r4.data ?? [])
-      setCartoes(fetchedCards)
+      setTxAll(processTxByCycle(d.transacoes || []))
+      setTxPrev(processPrevTx(d.transacoesPrevMes || []))
 
-      // Step 3: sync budgets from Supabase (override localStorage if data found)
-      try {
-        const { data: bdData } = await client.from('budgets').select('categoria,valor').eq('phone', resolvedPhone)
-        if (bdData && bdData.length > 0) {
-          const sbBudgets: Record<string, number> = {}
-          bdData.forEach((b: any) => { sbBudgets[b.categoria] = b.valor })
-          setBudgets(sbBudgets)
-          localStorage.setItem('fin_budgets', JSON.stringify(sbBudgets))
-        }
-      } catch { /* tabela budgets pode não existir, usar localStorage */ }
+      // Budget sync
+      if (d.budgets && d.budgets.length > 0) {
+        const sbBudgets: Record<string, number> = {}
+        d.budgets.forEach((b: any) => { sbBudgets[b.categoria] = b.valor })
+        setBudgets(sbBudgets)
+        localStorage.setItem('fin_budgets', JSON.stringify(sbBudgets))
+      }
 
     } catch { setAuthError('erro_rede') }
     setLoading(false)
@@ -178,22 +161,34 @@ function Dashboard() {
     e.preventDefault()
     if (!newCard.nome_cartao.trim() || !phone) return
     setSavingCard(true)
-    const client = getSupabase()
-    if (client) {
-      const resp = await client.from('cartoes').insert({ phone, ...newCard }).select().single()
-      if (resp.data) setCartoes(prev => [...prev, resp.data].sort((a, b) => a.nome_cartao.localeCompare(b.nome_cartao)))
-      setNewCard({ nome_cartao: '', dia_fechamento: 1, dia_vencimento: 10 })
+    try {
+      const res = await fetch(`/api/cartoes?token=${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCard)
+      })
+      const data = await res.json()
+      if (res.ok && data) {
+        setCartoes(prev => [...prev, data].sort((a, b) => a.nome_cartao.localeCompare(b.nome_cartao)))
+        setNewCard({ nome_cartao: '', dia_fechamento: 1, dia_vencimento: 10 })
+      }
+    } catch {
+      alert('Erro ao salvar cartão.')
     }
     setSavingCard(false)
   }
 
   const deleteCard = async (id: string) => {
     if (!confirm('Deseja excluir este cartão?')) return
-    const client = getSupabase()
-    if (client) {
-      const { error } = await client.from('cartoes').delete().eq('id', id)
-      if (error) { alert('Não foi possível excluir. Este cartão possui transações vinculadas.'); return }
+    try {
+      const res = await fetch(`/api/cartoes?token=${token}&id=${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        alert('Não foi possível excluir. Este cartão possui transações vinculadas.')
+        return
+      }
       setCartoes(prev => prev.filter(c => c.id !== id))
+    } catch {
+      alert('Erro ao excluir cartão.')
     }
   }
 
@@ -202,29 +197,30 @@ function Dashboard() {
     e.preventDefault()
     if (!editingTx) return
     setSavingTx(true)
-    const client = getSupabase()
-    if (client) {
-      const { data, error } = await client.from('transacoes').update({
-        descricao: editingTx.descricao,
-        valor: editingTx.valor,
-        categoria: editingTx.categoria,
-        data: editingTx.data,
-      }).eq('id', editingTx.id).select().single()
-
-      if (data && !error) {
-        if (editingTx.tipo === 'parcela' && editingTx.compra_parcelada_id) {
-          await client.from('faturas').update({
-            valor: data.valor,
-            descricao: data.descricao,
-            vencimento: data.data,
-          }).eq('compra_parcelada_id', editingTx.compra_parcelada_id)
-            .eq('vencimento', editingTxOriginalData)
-        }
+    try {
+      const res = await fetch(`/api/transacoes?token=${token}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingTx.id,
+          descricao: editingTx.descricao,
+          valor: editingTx.valor,
+          categoria: editingTx.categoria,
+          data: editingTx.data,
+          originalData: editingTxOriginalData,
+          tipo: editingTx.tipo,
+          compra_parcelada_id: editingTx.compra_parcelada_id
+        })
+      })
+      const data = await res.json()
+      if (res.ok && data) {
         setTxAll(prev => prev.map(t => t.id === data.id ? data : t))
         setEditingTx(null)
       } else {
         alert('Erro ao salvar a edição. Tente novamente.')
       }
+    } catch {
+      alert('Erro de conexão ao salvar edição.')
     }
     setSavingTx(false)
   }
@@ -235,16 +231,30 @@ function Dashboard() {
     const total = itens.reduce((a, t) => a + t.valor, 0)
     if (!confirm(`Confirmar pagamento da fatura ${cartao?.nome_cartao} de ${fmt(total)}?\n\nUma transação PIX/débito será criada no valor total.`)) return
     setPagandoFatura(cartaoId)
-    const client = getSupabase()
-    if (client) {
+    try {
       const diaVenc = cartao?.dia_vencimento || 1
       const hoje = `${year}-${String(month + 1).padStart(2, '0')}-${String(diaVenc).padStart(2, '0')}`
-      await client.from('transacoes').insert({ phone, tipo: 'gasto', valor: total, categoria: 'Transferência', descricao: `Pagamento fatura ${cartao?.nome_cartao}`, data: hoje, cartao_id: null, criado_em: new Date().toISOString() })
-      const parcelas = itens.filter(t => t.tipo === 'parcela' && t.compra_parcelada_id)
-      for (const p of parcelas) {
-        await client.from('faturas').update({ status: 'pago' }).eq('compra_parcelada_id', p.compra_parcelada_id!).eq('vencimento', p.data)
+
+      const res = await fetch(`/api/transacoes?token=${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'pagar_fatura',
+          cartaoId,
+          itens,
+          cartaoNome: cartao?.nome_cartao,
+          diaVenc,
+          hoje,
+          total
+        })
+      })
+      if (res.ok) {
+        await fetchData()
+      } else {
+        alert('Erro ao pagar a fatura.')
       }
-      await fetchData()
+    } catch {
+      alert('Erro de conexão ao pagar a fatura.')
     }
     setPagandoFatura(null)
   }
